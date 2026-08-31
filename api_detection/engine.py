@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 from .contracts import ApiSecurityEvent, DetectorResult
+from .detectors import detect_bola_idor
 
 
 def run_all_detectors(
@@ -15,5 +16,4 @@ def run_all_detectors(
     Detectors are added here one at a time as they are implemented. Keeping the
     public entry point stable means the backend integration will not change.
     """
-    del event, recent_events
-    return []
+    return [detect_bola_idor(event, recent_events)]

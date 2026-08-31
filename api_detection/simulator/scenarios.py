@@ -1,5 +1,7 @@
 """Small deterministic traffic scenarios; attack fixtures are added per detector."""
 
+from dataclasses import replace
+
 from ..contracts import (
     ApiSecurityEvent,
     IdentityInfo,
@@ -25,5 +27,17 @@ def normal_event(event_id: str = "evt-normal-001") -> ApiSecurityEvent:
         response=ResponseInfo(status_code=200, latency_ms=42),
         resource=ResourceInfo(
             resource_type="order", resource_id="17", owner_id="user_17"
+        ),
+    )
+
+
+def bola_idor_event(event_id: str = "evt-bola-001") -> ApiSecurityEvent:
+    """Authenticated user requests an order owned by a different user."""
+    event = normal_event(event_id)
+    return replace(
+        event,
+        request=RequestInfo(method="GET", endpoint="/api/orders/42"),
+        resource=ResourceInfo(
+            resource_type="order", resource_id="42", owner_id="user_42", is_sensitive=True
         ),
     )
