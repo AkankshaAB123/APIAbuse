@@ -1,6 +1,25 @@
+# Python virtual environments
+.venv/
+venv/
+env/
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Environment variables
+.env
+.env.*
+
+# Machine Learning generated files
 ml/datasets/
 ml/models/*.pkl
 ml/models/*.joblib
-__pycache__/
-.venv/
-.env
+
+# IDE files
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
