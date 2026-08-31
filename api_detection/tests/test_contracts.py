@@ -1,9 +1,18 @@
 import unittest
 
+from dataclasses import replace
+
 from api_detection.contracts import AttackType, DetectorResult, Evidence, Severity
-from api_detection.detectors import detect_bola_idor
+from api_detection.detectors import (
+    detect_bola_idor,
+    detect_broken_function_level_authorization,
+)
 from api_detection.engine import run_all_detectors
-from api_detection.simulator import bola_idor_event, normal_event
+from api_detection.simulator import (
+    bola_idor_event,
+    normal_event,
+    privilege_escalation_event,
+)
 
 
 class DetectorContractTests(unittest.TestCase):
@@ -39,10 +48,29 @@ class DetectorContractTests(unittest.TestCase):
         self.assertFalse(result.detected)
         self.assertIsNone(result.attack_type)
 
-    def test_engine_returns_bola_result(self) -> None:
+    def test_privilege_escalation_detects_customer_on_admin_route(self) -> None:
+        result = detect_broken_function_level_authorization(privilege_escalation_event())
+
+        self.assertTrue(result.detected)
+        self.assertEqual(
+            result.attack_type, AttackType.BROKEN_FUNCTION_LEVEL_AUTHORIZATION
+        )
+        self.assertEqual(result.severity, Severity.CRITICAL)
+
+    def test_privilege_escalation_allows_admin_role(self) -> None:
+        event = privilege_escalation_event()
+        admin_event = replace(
+            event, identity=replace(event.identity, roles=("admin",))
+        )
+
+        result = detect_broken_function_level_authorization(admin_event)
+
+        self.assertFalse(result.detected)
+
+    def test_engine_returns_registered_detector_results(self) -> None:
         results = run_all_detectors(bola_idor_event())
 
-        self.assertEqual(len(results), 1)
+        self.assertEqual(len(results), 2)
         self.assertTrue(results[0].detected)
 
 

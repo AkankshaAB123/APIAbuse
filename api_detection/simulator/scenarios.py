@@ -41,3 +41,15 @@ def bola_idor_event(event_id: str = "evt-bola-001") -> ApiSecurityEvent:
             resource_type="order", resource_id="42", owner_id="user_42", is_sensitive=True
         ),
     )
+
+
+def privilege_escalation_event(event_id: str = "evt-bfla-001") -> ApiSecurityEvent:
+    """Customer account tries to access an administrator-only operation."""
+    event = normal_event(event_id)
+    return replace(
+        event,
+        request=RequestInfo(method="DELETE", endpoint="/api/admin/users/user_42"),
+        resource=ResourceInfo(
+            resource_type="user", resource_id="user_42", owner_id="user_42", is_sensitive=True
+        ),
+    )
