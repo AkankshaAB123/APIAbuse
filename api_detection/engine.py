@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 from .contracts import ApiSecurityEvent, DetectorResult
+from .detectors import detect_account_takeover
 from .detectors import detect_bola_idor
 from .detectors import detect_broken_function_level_authorization
 from .detectors import detect_credential_attacks
@@ -22,4 +23,5 @@ def run_all_detectors(
         detect_bola_idor(event, recent_events),
         detect_broken_function_level_authorization(event, recent_events),
         detect_credential_attacks(event, recent_events),
+        detect_account_takeover(event, recent_events),
     ]

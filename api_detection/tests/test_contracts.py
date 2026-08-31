@@ -7,6 +7,7 @@ from api_detection.detectors import (
     detect_bola_idor,
     detect_broken_function_level_authorization,
     detect_credential_attacks,
+    detect_account_takeover,
 )
 from api_detection.engine import run_all_detectors
 from api_detection.simulator import (
@@ -14,6 +15,7 @@ from api_detection.simulator import (
     failed_login_event,
     normal_event,
     privilege_escalation_event,
+    successful_login_event,
 )
 
 
@@ -102,10 +104,40 @@ class DetectorContractTests(unittest.TestCase):
 
         self.assertFalse(result.detected)
 
+    def test_account_takeover_detects_failed_logins_then_success(self) -> None:
+        history = [
+            failed_login_event(f"evt-takeover-failed-{number}", "user_17")
+            for number in range(1, 4)
+        ]
+
+        result = detect_account_takeover(successful_login_event(), history)
+
+        self.assertTrue(result.detected)
+        self.assertEqual(result.attack_type, AttackType.ACCOUNT_TAKEOVER)
+        self.assertEqual(result.metadata["subtype"], "FAILED_LOGINS_THEN_SUCCESS")
+
+    def test_account_takeover_detects_session_ip_change(self) -> None:
+        previous_event = normal_event()
+        changed_ip_event = replace(
+            previous_event,
+            event_id="evt-session-ip-change",
+            network=replace(previous_event.network, source_ip="192.168.1.99"),
+        )
+
+        result = detect_account_takeover(changed_ip_event, [previous_event])
+
+        self.assertTrue(result.detected)
+        self.assertEqual(result.metadata["subtype"], "SESSION_IP_CHANGE")
+
+    def test_account_takeover_ignores_normal_successful_login(self) -> None:
+        result = detect_account_takeover(successful_login_event())
+
+        self.assertFalse(result.detected)
+
     def test_engine_returns_registered_detector_results(self) -> None:
         results = run_all_detectors(bola_idor_event())
 
-        self.assertEqual(len(results), 3)
+        self.assertEqual(len(results), 4)
         self.assertTrue(results[0].detected)
 
 

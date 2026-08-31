@@ -71,3 +71,26 @@ def failed_login_event(
         ),
         response=ResponseInfo(status_code=401, latency_ms=35),
     )
+
+
+def successful_login_event(
+    event_id: str = "evt-takeover-success", source_ip: str = "192.168.1.77"
+) -> ApiSecurityEvent:
+    """A successful login event used with preceding failed attempts."""
+    return ApiSecurityEvent(
+        event_id=event_id,
+        timestamp="2026-09-01T10:01:00Z",
+        network=NetworkInfo(source_ip=source_ip, user_agent="demo-client/1.0"),
+        identity=IdentityInfo(
+            user_id="user_17",
+            session_id="session-takeover-001",
+            roles=("customer",),
+            is_authenticated=True,
+        ),
+        request=RequestInfo(
+            method="POST",
+            endpoint="/api/auth/login",
+            body={"username": "user_17", "password": "valid-demo-password"},
+        ),
+        response=ResponseInfo(status_code=200, latency_ms=42),
+    )

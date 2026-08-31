@@ -5,6 +5,7 @@ from .scenarios import (
     failed_login_event,
     normal_event,
     privilege_escalation_event,
+    successful_login_event,
 )
 
 __all__ = [
@@ -12,4 +13,5 @@ __all__ = [
     "failed_login_event",
     "normal_event",
     "privilege_escalation_event",
+    "successful_login_event",
 ]
