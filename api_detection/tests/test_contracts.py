@@ -6,10 +6,12 @@ from api_detection.contracts import AttackType, DetectorResult, Evidence, Severi
 from api_detection.detectors import (
     detect_bola_idor,
     detect_broken_function_level_authorization,
+    detect_credential_attacks,
 )
 from api_detection.engine import run_all_detectors
 from api_detection.simulator import (
     bola_idor_event,
+    failed_login_event,
     normal_event,
     privilege_escalation_event,
 )
@@ -67,10 +69,43 @@ class DetectorContractTests(unittest.TestCase):
 
         self.assertFalse(result.detected)
 
+    def test_credential_attacks_detect_brute_force(self) -> None:
+        history = [
+            failed_login_event(f"evt-brute-{number}", "user_17")
+            for number in range(1, 5)
+        ]
+        current_event = failed_login_event("evt-brute-5", "user_17")
+
+        result = detect_credential_attacks(current_event, history)
+
+        self.assertTrue(result.detected)
+        self.assertEqual(result.metadata["subtype"], "BRUTE_FORCE")
+        self.assertEqual(result.metadata["failed_attempts"], 5)
+
+    def test_credential_attacks_detect_credential_stuffing(self) -> None:
+        history = [
+            failed_login_event("evt-stuff-1", "alice"),
+            failed_login_event("evt-stuff-2", "bob"),
+            failed_login_event("evt-stuff-3", "carol"),
+            failed_login_event("evt-stuff-4", "dave"),
+        ]
+        current_event = failed_login_event("evt-stuff-5", "erin")
+
+        result = detect_credential_attacks(current_event, history)
+
+        self.assertTrue(result.detected)
+        self.assertEqual(result.metadata["subtype"], "CREDENTIAL_STUFFING")
+        self.assertEqual(result.metadata["unique_accounts"], 5)
+
+    def test_credential_attacks_ignore_an_isolated_failed_login(self) -> None:
+        result = detect_credential_attacks(failed_login_event("evt-single", "user_17"))
+
+        self.assertFalse(result.detected)
+
     def test_engine_returns_registered_detector_results(self) -> None:
         results = run_all_detectors(bola_idor_event())
 
-        self.assertEqual(len(results), 2)
+        self.assertEqual(len(results), 3)
         self.assertTrue(results[0].detected)
 
 

@@ -53,3 +53,21 @@ def privilege_escalation_event(event_id: str = "evt-bfla-001") -> ApiSecurityEve
             resource_type="user", resource_id="user_42", owner_id="user_42", is_sensitive=True
         ),
     )
+
+
+def failed_login_event(
+    event_id: str, username: str, source_ip: str = "192.168.1.77"
+) -> ApiSecurityEvent:
+    """A failed login event used to construct credential-attack histories."""
+    return ApiSecurityEvent(
+        event_id=event_id,
+        timestamp="2026-09-01T10:00:00Z",
+        network=NetworkInfo(source_ip=source_ip, user_agent="demo-client/1.0"),
+        identity=IdentityInfo(is_authenticated=False),
+        request=RequestInfo(
+            method="POST",
+            endpoint="/api/auth/login",
+            body={"username": username, "password": "incorrect-demo-password"},
+        ),
+        response=ResponseInfo(status_code=401, latency_ms=35),
+    )
