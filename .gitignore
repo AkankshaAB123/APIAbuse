@@ -1,0 +1,6 @@
+ml/datasets/
+ml/models/*.pkl
+ml/models/*.joblib
+__pycache__/
+.venv/
+.env
