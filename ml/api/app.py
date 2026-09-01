@@ -1,52 +1,24 @@
-from flask import Flask, request, jsonify
-
-import pandas as pd
-import joblib
-
+import sys
 from pathlib import Path
 
-from risk_engine import calculate_risk
+
+# =========================================================
+# PROJECT PATH
+# =========================================================
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+
+sys.path.insert(0, str(PROJECT_ROOT))
 
 
 # =========================================================
-# PATHS
+# IMPORTS
 # =========================================================
 
-BASE_DIR = Path(__file__).resolve().parent.parent
+from flask import Flask, request, jsonify
 
-XGBOOST_MODEL_FILE = (
-    BASE_DIR
-    / "models"
-    / "xgboost.pkl"
-)
-
-ISOLATION_MODEL_FILE = (
-    BASE_DIR
-    / "models"
-    / "isolation_forest.pkl"
-)
-
-
-# =========================================================
-# LOAD MODELS
-# =========================================================
-
-print("=" * 70)
-print("LOADING ML MODELS")
-print("=" * 70)
-
-print("\nLoading XGBoost model...")
-
-xgboost_model = joblib.load(XGBOOST_MODEL_FILE)
-
-print("XGBoost model loaded successfully.")
-
-
-print("\nLoading Isolation Forest...")
-
-isolation_model = joblib.load(ISOLATION_MODEL_FILE)
-
-print("Isolation Forest loaded successfully.")
+from ml.api.predictor import predict
+from ml.api.anomaly_detector import detect_anomaly
 
 
 # =========================================================
@@ -60,15 +32,29 @@ app = Flask(__name__)
 # HEALTH CHECK
 # =========================================================
 
+@app.route("/", methods=["GET"])
+def home():
+
+    return jsonify({
+        "message": "API Abuse ML API is running",
+        "model": "XGBoost + Isolation Forest",
+        "endpoints": [
+            "GET /",
+            "GET /health",
+            "POST /predict"
+        ]
+    })
+
+
 @app.route("/health", methods=["GET"])
 def health():
 
     return jsonify({
         "status": "ok",
-        "models": [
-            "xgboost",
-            "isolation_forest"
-        ]
+        "models": {
+            "attack_detection": "xgboost",
+            "anomaly_detection": "isolation_forest"
+        }
     })
 
 
@@ -77,12 +63,12 @@ def health():
 # =========================================================
 
 @app.route("/predict", methods=["POST"])
-def predict():
+def prediction():
 
     try:
 
         # -------------------------------------------------
-        # Get JSON data
+        # Get JSON
         # -------------------------------------------------
 
         data = request.get_json()
@@ -108,102 +94,45 @@ def predict():
 
 
         # -------------------------------------------------
-        # Convert features to DataFrame
+        # XGBoost prediction
         # -------------------------------------------------
 
-        X = pd.DataFrame([features])
+        attack_result = predict(features)
 
 
-        # =================================================
-        # XGBOOST
-        # =================================================
+        # -------------------------------------------------
+        # Isolation Forest anomaly detection
+        # -------------------------------------------------
 
-        xgb_prediction = xgboost_model.predict(X)[0]
-
-        probabilities = xgboost_model.predict_proba(X)[0]
-
-        benign_probability = float(probabilities[0])
-
-        attack_probability = float(probabilities[1])
+        anomaly_result = detect_anomaly(features)
 
 
-        if xgb_prediction == 1:
-            prediction = "ATTACK"
-        else:
-            prediction = "BENIGN"
-
-
-        # =================================================
-        # ISOLATION FOREST
-        # =================================================
-
-        isolation_prediction = isolation_model.predict(X)[0]
-
-        raw_anomaly_score = (
-            isolation_model
-            .decision_function(X)[0]
-        )
-
-
-        # Isolation Forest:
-        #
-        #   1  = normal
-        #  -1  = anomaly
-        #
-
-        is_anomaly = (
-            isolation_prediction == -1
-        )
-
-
-        # =================================================
-        # RISK ENGINE
-        # =================================================
-
-        risk_level = calculate_risk(
-            attack_probability,
-            is_anomaly
-        )
-
-
-        # =================================================
-        # RESPONSE
-        # =================================================
+        # -------------------------------------------------
+        # Combined response
+        # -------------------------------------------------
 
         return jsonify({
 
-            # -------------------------------------------------
-            # XGBoost
-            # -------------------------------------------------
+            "prediction":
+                attack_result["prediction"],
 
-            "prediction": prediction,
+            "attack_probability":
+                attack_result["attack_probability"],
 
-            "attack_probability": attack_probability,
+            "benign_probability":
+                attack_result["benign_probability"],
 
-            "benign_probability": benign_probability,
+            "model":
+                attack_result["model"],
 
+            "is_anomaly":
+                anomaly_result["is_anomaly"],
 
-            # -------------------------------------------------
-            # Isolation Forest
-            # -------------------------------------------------
-
-            "is_anomaly": bool(is_anomaly),
-
-            "anomaly_score": float(raw_anomaly_score),
-
-
-            # -------------------------------------------------
-            # Risk Engine
-            # -------------------------------------------------
-
-            "risk_level": risk_level
+            "anomaly_score":
+                anomaly_result["anomaly_score"]
 
         })
 
-
-    # =====================================================
-    # ERROR HANDLING
-    # =====================================================
 
     except Exception as e:
 
@@ -217,6 +146,19 @@ def predict():
 # =========================================================
 
 if __name__ == "__main__":
+
+    print("=" * 60)
+    print("ML API READY")
+    print("=" * 60)
+
+    print()
+    print("Endpoints:")
+    print("  GET  http://127.0.0.1:5000/")
+    print("  GET  http://127.0.0.1:5000/health")
+    print("  POST http://127.0.0.1:5000/predict")
+    print()
+    print("Starting server...")
+    print()
 
     app.run(
         host="127.0.0.1",
