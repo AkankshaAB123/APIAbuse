@@ -11,7 +11,7 @@ class DetectionEvidence(BaseModel):
 class DetectorMetadata(BaseModel):
     rule_version: str = "1.0"
     window_seconds: int = 0
-
+    details: dict[str, Any] = Field(default_factory=dict)
 
 class DetectorResult(BaseModel):
     schema_version: str = "1.0"
