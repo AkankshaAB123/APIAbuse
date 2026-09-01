@@ -3,6 +3,7 @@ import unittest
 from dataclasses import replace
 
 from api_detection.contracts import AttackType, DetectorResult, Evidence, Severity
+from api_detection.backend_adapter import run_for_backend
 from api_detection.detectors import (
     detect_bola_idor,
     detect_broken_function_level_authorization,
@@ -139,6 +140,49 @@ class DetectorContractTests(unittest.TestCase):
 
         self.assertEqual(len(results), 4)
         self.assertTrue(results[0].detected)
+
+    def test_backend_adapter_preserves_contract_and_metadata_details(self) -> None:
+        event = {
+            "schema_version": "1.0",
+            "event_id": "evt-adapter-001",
+            "timestamp": "2026-09-02T10:00:00Z",
+            "network": {"source_ip": "192.168.1.77", "user_agent": "demo-client/1.0"},
+            "identity": {
+                "user_id": None,
+                "session_id": None,
+                "roles": [],
+                "is_authenticated": False,
+            },
+            "request": {
+                "method": "POST",
+                "endpoint": "/api/auth/login",
+                "path_params": {},
+                "query_params": {},
+                "headers": {},
+                "body": {"username": "user_17", "password": "incorrect"},
+            },
+            "response": {"status_code": 401, "latency_ms": 35.5},
+            "resource": {
+                "resource_type": None,
+                "resource_id": None,
+                "owner_id": None,
+                "is_sensitive": False,
+            },
+        }
+        history = [
+            {**event, "event_id": f"evt-adapter-history-{number}"}
+            for number in range(1, 5)
+        ]
+
+        results = run_for_backend(event, history)
+        credential_result = next(
+            result for result in results if result["detector_id"] == "credential_attacks"
+        )
+
+        self.assertTrue(credential_result["detected"])
+        self.assertEqual(credential_result["attack_type"], "CREDENTIAL_ATTACK")
+        self.assertEqual(credential_result["metadata"]["window_seconds"], 300)
+        self.assertEqual(credential_result["metadata"]["details"]["subtype"], "BRUTE_FORCE")
 
 
 if __name__ == "__main__":

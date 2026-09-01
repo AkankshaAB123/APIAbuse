@@ -54,7 +54,7 @@ class RequestInfo:
 @dataclass(frozen=True)
 class ResponseInfo:
     status_code: int
-    latency_ms: int | None = None
+    latency_ms: float | None = None
 
 
 @dataclass(frozen=True)
