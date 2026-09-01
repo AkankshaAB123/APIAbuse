@@ -94,3 +94,16 @@ def successful_login_event(
         ),
         response=ResponseInfo(status_code=200, latency_ms=42),
     )
+
+
+def sql_injection_event(event_id: str = "evt-sqli-001") -> ApiSecurityEvent:
+    """Search request carrying a classic Boolean-tautology SQLi pattern."""
+    event = normal_event(event_id)
+    return replace(
+        event,
+        request=RequestInfo(
+            method="GET",
+            endpoint="/api/products/search",
+            query_params={"query": "' OR 1=1 --"},
+        ),
+    )

@@ -8,6 +8,7 @@ from api_detection.detectors import (
     detect_bola_idor,
     detect_broken_function_level_authorization,
     detect_credential_attacks,
+    detect_sql_injection,
     detect_account_takeover,
 )
 from api_detection.engine import run_all_detectors
@@ -17,6 +18,7 @@ from api_detection.simulator import (
     normal_event,
     privilege_escalation_event,
     successful_login_event,
+    sql_injection_event,
 )
 
 
@@ -135,10 +137,22 @@ class DetectorContractTests(unittest.TestCase):
 
         self.assertFalse(result.detected)
 
+    def test_sql_injection_detects_suspicious_query_parameter(self) -> None:
+        result = detect_sql_injection(sql_injection_event())
+
+        self.assertTrue(result.detected)
+        self.assertEqual(result.attack_type, AttackType.SQL_INJECTION)
+        self.assertEqual(result.evidence[0].code, "BOOLEAN_TAUTOLOGY")
+
+    def test_sql_injection_ignores_normal_request_values(self) -> None:
+        result = detect_sql_injection(normal_event())
+
+        self.assertFalse(result.detected)
+
     def test_engine_returns_registered_detector_results(self) -> None:
         results = run_all_detectors(bola_idor_event())
 
-        self.assertEqual(len(results), 4)
+        self.assertEqual(len(results), 5)
         self.assertTrue(results[0].detected)
 
     def test_backend_adapter_preserves_contract_and_metadata_details(self) -> None:
