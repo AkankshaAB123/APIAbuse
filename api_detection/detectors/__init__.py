@@ -7,6 +7,7 @@ from .broken_function_level_authorization import (
 )
 from .credential_attacks import detect_credential_attacks
 from .sql_injection import detect_sql_injection
+from .ssrf import detect_ssrf
 
 __all__ = [
     "detect_account_takeover",
@@ -14,4 +15,5 @@ __all__ = [
     "detect_broken_function_level_authorization",
     "detect_credential_attacks",
     "detect_sql_injection",
+    "detect_ssrf",
 ]

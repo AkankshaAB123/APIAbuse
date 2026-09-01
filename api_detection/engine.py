@@ -10,6 +10,7 @@ from .detectors import detect_bola_idor
 from .detectors import detect_broken_function_level_authorization
 from .detectors import detect_credential_attacks
 from .detectors import detect_sql_injection
+from .detectors import detect_ssrf
 
 
 def run_all_detectors(
@@ -26,4 +27,5 @@ def run_all_detectors(
         detect_credential_attacks(event, recent_events),
         detect_account_takeover(event, recent_events),
         detect_sql_injection(event, recent_events),
+        detect_ssrf(event, recent_events),
     ]

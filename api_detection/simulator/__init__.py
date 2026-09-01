@@ -7,6 +7,7 @@ from .scenarios import (
     privilege_escalation_event,
     successful_login_event,
     sql_injection_event,
+    ssrf_event,
 )
 
 __all__ = [
@@ -16,4 +17,5 @@ __all__ = [
     "privilege_escalation_event",
     "successful_login_event",
     "sql_injection_event",
+    "ssrf_event",
 ]

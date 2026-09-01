@@ -107,3 +107,16 @@ def sql_injection_event(event_id: str = "evt-sqli-001") -> ApiSecurityEvent:
             query_params={"query": "' OR 1=1 --"},
         ),
     )
+
+
+def ssrf_event(event_id: str = "evt-ssrf-001") -> ApiSecurityEvent:
+    """Webhook setup request attempting to reach a cloud metadata address."""
+    event = normal_event(event_id)
+    return replace(
+        event,
+        request=RequestInfo(
+            method="POST",
+            endpoint="/api/integrations/webhooks",
+            body={"callback_url": "http://169.254.169.254/latest/meta-data/"},
+        ),
+    )
