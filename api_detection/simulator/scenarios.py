@@ -12,75 +12,127 @@ from ..contracts import (
 )
 
 
-def normal_event(event_id: str = "evt-normal-001") -> ApiSecurityEvent:
+def normal_event(
+    event_id: str = "evt-normal-001",
+) -> ApiSecurityEvent:
     return ApiSecurityEvent(
         event_id=event_id,
         timestamp="2026-09-01T10:00:00Z",
-        network=NetworkInfo(source_ip="192.168.1.10", user_agent="demo-client/1.0"),
+        network=NetworkInfo(
+            source_ip="192.168.1.10",
+            user_agent="demo-client/1.0",
+        ),
         identity=IdentityInfo(
             user_id="user_17",
             session_id="session-normal-001",
             roles=("customer",),
             is_authenticated=True,
         ),
-        request=RequestInfo(method="GET", endpoint="/api/orders/17"),
-        response=ResponseInfo(status_code=200, latency_ms=42),
+        request=RequestInfo(
+            method="GET",
+            endpoint="/api/orders/17",
+        ),
+        response=ResponseInfo(
+            status_code=200,
+            latency_ms=42,
+        ),
         resource=ResourceInfo(
-            resource_type="order", resource_id="17", owner_id="user_17"
+            resource_type="order",
+            resource_id="17",
+            owner_id="user_17",
         ),
     )
 
 
-def bola_idor_event(event_id: str = "evt-bola-001") -> ApiSecurityEvent:
+def bola_idor_event(
+    event_id: str = "evt-bola-001",
+) -> ApiSecurityEvent:
     """Authenticated user requests an order owned by a different user."""
+
     event = normal_event(event_id)
+
     return replace(
         event,
-        request=RequestInfo(method="GET", endpoint="/api/orders/42"),
+        request=RequestInfo(
+            method="GET",
+            endpoint="/api/orders/42",
+        ),
         resource=ResourceInfo(
-            resource_type="order", resource_id="42", owner_id="user_42", is_sensitive=True
+            resource_type="order",
+            resource_id="42",
+            owner_id="user_42",
+            is_sensitive=True,
         ),
     )
 
 
-def privilege_escalation_event(event_id: str = "evt-bfla-001") -> ApiSecurityEvent:
+def privilege_escalation_event(
+    event_id: str = "evt-bfla-001",
+) -> ApiSecurityEvent:
     """Customer account tries to access an administrator-only operation."""
+
     event = normal_event(event_id)
+
     return replace(
         event,
-        request=RequestInfo(method="DELETE", endpoint="/api/admin/users/user_42"),
+        request=RequestInfo(
+            method="DELETE",
+            endpoint="/api/admin/users/user_42",
+        ),
         resource=ResourceInfo(
-            resource_type="user", resource_id="user_42", owner_id="user_42", is_sensitive=True
+            resource_type="user",
+            resource_id="user_42",
+            owner_id="user_42",
+            is_sensitive=True,
         ),
     )
 
 
 def failed_login_event(
-    event_id: str, username: str, source_ip: str = "192.168.1.77"
+    event_id: str,
+    username: str,
+    source_ip: str = "192.168.1.77",
 ) -> ApiSecurityEvent:
     """A failed login event used to construct credential-attack histories."""
+
     return ApiSecurityEvent(
         event_id=event_id,
         timestamp="2026-09-01T10:00:00Z",
-        network=NetworkInfo(source_ip=source_ip, user_agent="demo-client/1.0"),
-        identity=IdentityInfo(is_authenticated=False),
+        network=NetworkInfo(
+            source_ip=source_ip,
+            user_agent="demo-client/1.0",
+        ),
+        identity=IdentityInfo(
+            is_authenticated=False,
+        ),
         request=RequestInfo(
             method="POST",
             endpoint="/api/auth/login",
-            body={"username": username, "password": "incorrect-demo-password"},
+            body={
+                "username": username,
+                "password": "incorrect-demo-password",
+            },
         ),
-        response=ResponseInfo(status_code=401, latency_ms=35),
+        response=ResponseInfo(
+            status_code=401,
+            latency_ms=35,
+        ),
     )
 
 
 def successful_login_event(
-    event_id: str = "evt-takeover-success", source_ip: str = "192.168.1.77"
+    event_id: str = "evt-takeover-success",
+    source_ip: str = "192.168.1.77",
 ) -> ApiSecurityEvent:
     """A successful login event used with preceding failed attempts."""
+
     return ApiSecurityEvent(
         event_id=event_id,
         timestamp="2026-09-01T10:01:00Z",
-        network=NetworkInfo(source_ip=source_ip, user_agent="demo-client/1.0"),
+        network=NetworkInfo(
+            source_ip=source_ip,
+            user_agent="demo-client/1.0",
+        ),
         identity=IdentityInfo(
             user_id="user_17",
             session_id="session-takeover-001",
@@ -90,33 +142,157 @@ def successful_login_event(
         request=RequestInfo(
             method="POST",
             endpoint="/api/auth/login",
-            body={"username": "user_17", "password": "valid-demo-password"},
+            body={
+                "username": "user_17",
+                "password": "valid-demo-password",
+            },
         ),
-        response=ResponseInfo(status_code=200, latency_ms=42),
+        response=ResponseInfo(
+            status_code=200,
+            latency_ms=42,
+        ),
     )
 
 
-def sql_injection_event(event_id: str = "evt-sqli-001") -> ApiSecurityEvent:
-    """Search request carrying a classic Boolean-tautology SQLi pattern."""
+def sql_injection_event(
+    event_id: str = "evt-sqli-001",
+) -> ApiSecurityEvent:
+    """Search request carrying a Boolean-tautology SQLi pattern."""
+
     event = normal_event(event_id)
+
     return replace(
         event,
         request=RequestInfo(
             method="GET",
             endpoint="/api/products/search",
-            query_params={"query": "' OR 1=1 --"},
+            query_params={
+                "query": "' OR 1=1 --",
+            },
         ),
     )
 
 
-def ssrf_event(event_id: str = "evt-ssrf-001") -> ApiSecurityEvent:
-    """Webhook setup request attempting to reach a cloud metadata address."""
+def ssrf_event(
+    event_id: str = "evt-ssrf-001",
+) -> ApiSecurityEvent:
+    """Webhook request attempting to reach a cloud metadata address."""
+
     event = normal_event(event_id)
+
     return replace(
         event,
         request=RequestInfo(
             method="POST",
             endpoint="/api/integrations/webhooks",
-            body={"callback_url": "http://169.254.169.254/latest/meta-data/"},
+            body={
+                "callback_url": (
+                    "http://169.254.169.254/latest/meta-data/"
+                ),
+            },
+        ),
+    )
+
+
+def resource_exhaustion_event(
+    event_id: str = "evt-resource-exhaustion-001",
+    source_ip: str = "192.168.1.88",
+) -> ApiSecurityEvent:
+    """A request used to simulate repeated high-volume API traffic."""
+
+    return ApiSecurityEvent(
+        event_id=event_id,
+        timestamp="2026-09-01T10:00:00Z",
+        network=NetworkInfo(
+            source_ip=source_ip,
+            user_agent="demo-client/1.0",
+        ),
+        identity=IdentityInfo(
+            user_id="user_17",
+            session_id="session-resource-001",
+            roles=("customer",),
+            is_authenticated=True,
+        ),
+        request=RequestInfo(
+            method="GET",
+            endpoint="/api/reports/export",
+        ),
+        response=ResponseInfo(
+            status_code=200,
+            latency_ms=150,
+        ),
+    )
+
+
+def business_flow_abuse_event(
+    event_id: str = "evt-business-flow-abuse-001",
+) -> ApiSecurityEvent:
+    """
+    An authenticated user performs a sensitive business operation.
+    Multiple events can be used to simulate repeated abuse.
+    """
+
+    return ApiSecurityEvent(
+        event_id=event_id,
+        timestamp="2026-09-01T10:00:00Z",
+        network=NetworkInfo(
+            source_ip="192.168.1.90",
+            user_agent="demo-client/1.0",
+        ),
+        identity=IdentityInfo(
+            user_id="user_17",
+            session_id="session-business-flow-001",
+            roles=("customer",),
+            is_authenticated=True,
+        ),
+        request=RequestInfo(
+            method="POST",
+            endpoint="/api/orders",
+            body={
+                "product_id": "product_42",
+                "quantity": 1,
+            },
+        ),
+        response=ResponseInfo(
+            status_code=201,
+            latency_ms=120,
+        ),
+        resource=ResourceInfo(
+            resource_type="order",
+            resource_id=None,
+            owner_id="user_17",
+            is_sensitive=True,
+        ),
+    )
+def endpoint_enumeration_event(
+    event_id: str = "evt-endpoint-enumeration-001",
+    endpoint: str = "/api/users",
+    source_ip: str = "192.168.1.95",
+) -> ApiSecurityEvent:
+    """
+    Event used to simulate a client accessing many
+    different API endpoints.
+    """
+
+    return ApiSecurityEvent(
+        event_id=event_id,
+        timestamp="2026-09-01T10:00:00Z",
+        network=NetworkInfo(
+            source_ip=source_ip,
+            user_agent="demo-client/1.0",
+        ),
+        identity=IdentityInfo(
+            user_id="user_17",
+            session_id="session-enumeration-001",
+            roles=("customer",),
+            is_authenticated=True,
+        ),
+        request=RequestInfo(
+            method="GET",
+            endpoint=endpoint,
+        ),
+        response=ResponseInfo(
+            status_code=404,
+            latency_ms=40,
         ),
     )
