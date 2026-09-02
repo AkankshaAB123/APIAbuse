@@ -2,7 +2,7 @@ import pandas as pd
 from pathlib import Path
 
 
-DATASET_DIR = Path("ml/datasets/CICIDS2017")
+DATASET_DIR = Path(__file__).resolve().parent / "datasets" / "CICIDS2017"
 
 
 def inspect_file(file_path):
@@ -10,59 +10,49 @@ def inspect_file(file_path):
     print(f"FILE: {file_path.name}")
     print("=" * 70)
 
+    label_counts = {}
+    total_rows = 0
+
     try:
-        df = pd.read_csv(file_path, low_memory=False)
+        # Read the CSV in chunks
+        for chunk in pd.read_csv(
+            file_path,
+            chunksize=50000,
+            low_memory=False
+        ):
 
-        print(f"\nRows: {df.shape[0]}")
-        print(f"Columns: {df.shape[1]}")
+            # Find Label column regardless of whitespace
+            label_column = None
 
-        print("\nColumn names:")
-        for column in df.columns:
-            print(f"  - {column}")
+            for column in chunk.columns:
+                if column.strip().lower() == "label":
+                    label_column = column
+                    break
 
-        # Find Label column
-        label_column = None
+            if label_column is None:
+                print("ERROR: Label column not found.")
+                return
 
-        for column in df.columns:
-            if column.strip().lower() == "label":
-                label_column = column
-                break
+            labels = chunk[label_column].astype(str).str.strip()
 
-        if label_column:
-            print("\nLabel distribution:")
-            print(df[label_column].value_counts())
+            counts = labels.value_counts()
 
-            print("\nLabel distribution (%):")
-            print(
-                df[label_column]
-                .value_counts(normalize=True)
-                .mul(100)
-                .round(2)
-            )
-        else:
-            print("\nWARNING: No Label column found.")
+            for label, count in counts.items():
+                label_counts[label] = label_counts.get(label, 0) + count
 
-        # Missing values
-        print("\nMissing values:")
+            total_rows += len(chunk)
 
-        missing = df.isnull().sum()
-        missing = missing[missing > 0]
+        print(f"\nTotal rows: {total_rows:,}")
 
-        if len(missing) == 0:
-            print("  No missing values found.")
-        else:
-            print(missing)
+        print("\nLabel distribution:")
 
-        # Infinite values
-        print("\nInfinite values:")
-
-        numeric_df = df.select_dtypes(include="number")
-
-        infinite_count = numeric_df.isin(
-            [float("inf"), float("-inf")]
-        ).sum().sum()
-
-        print(f"  Total infinite values: {infinite_count}")
+        for label, count in sorted(
+            label_counts.items(),
+            key=lambda x: x[1],
+            reverse=True
+        ):
+            percentage = (count / total_rows) * 100
+            print(f"  {label}: {count:,} ({percentage:.2f}%)")
 
     except Exception as e:
         print("\nERROR:")
