@@ -23,6 +23,7 @@ import {
 import {
   BarChart,
   Bar,
+  Cell,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -40,7 +41,8 @@ import RiskChart from "./components/RiskChart";
 import ThreatFilters from "./components/ThreatFilters";
 import ThreatTable from "./components/ThreatTable";
 import ThreatDetails from "./pages/ThreatDetails";
-
+import AttackSimulation from "./pages/AttackSimulation";
+import EnterpriseDashboard from "./pages/EnterpriseDashboard";
 import {
   dashboardStats,
   threats,
@@ -257,11 +259,6 @@ function ThreatsPage() {
 
 function AnalyticsPage() {
 
-  /*
-   * Temporary analytics data.
-   * Later this will come from FastAPI.
-   */
-
   const trafficTrend = [
     {
       time: "10:00",
@@ -442,31 +439,75 @@ function AnalyticsPage() {
           <LineChart data={trafficTrend}>
 
             <CartesianGrid
+              stroke="#252d4a"
               strokeDasharray="3 3"
+              vertical={false}
             />
 
             <XAxis
               dataKey="time"
+              tick={{
+                fill: "#a5acc5",
+                fontSize: 12
+              }}
+              axisLine={{
+                stroke: "#303858"
+              }}
+              tickLine={false}
             />
 
-            <YAxis />
+            <YAxis
+              tick={{
+                fill: "#a5acc5",
+                fontSize: 12
+              }}
+              axisLine={false}
+              tickLine={false}
+            />
 
-            <Tooltip />
+            <Tooltip
+              contentStyle={{
+                backgroundColor: "#11172a",
+                border: "1px solid #39446f",
+                borderRadius: "10px",
+                color: "#f5f7ff"
+              }}
+              labelStyle={{
+                color: "#ffffff"
+              }}
+              itemStyle={{
+                color: "#c4b5fd"
+              }}
+            />
 
             <Line
               type="monotone"
               dataKey="requests"
-              stroke="#2563eb"
+              stroke="#06B6D4"
               strokeWidth={3}
               name="Requests"
+              dot={{
+                r: 4,
+                fill: "#06B6D4"
+              }}
+              activeDot={{
+                r: 6
+              }}
             />
 
             <Line
               type="monotone"
               dataKey="threats"
-              stroke="#dc2626"
+              stroke="#EF4444"
               strokeWidth={3}
               name="Threats"
+              dot={{
+                r: 4,
+                fill: "#EF4444"
+              }}
+              activeDot={{
+                r: 6
+              }}
             />
 
           </LineChart>
@@ -505,22 +546,82 @@ function AnalyticsPage() {
           >
 
             <CartesianGrid
+              stroke="#252d4a"
               strokeDasharray="3 3"
+              vertical={false}
             />
 
             <XAxis
               dataKey="name"
+              tick={{
+                fill: "#a5acc5",
+                fontSize: 13
+              }}
+              axisLine={{
+                stroke: "#303858"
+              }}
+              tickLine={false}
             />
 
-            <YAxis />
+            <YAxis
+              tick={{
+                fill: "#a5acc5",
+                fontSize: 12
+              }}
+              axisLine={false}
+              tickLine={false}
+            />
 
-            <Tooltip />
+            <Tooltip
+              contentStyle={{
+                backgroundColor: "#11172a",
+                border: "1px solid #39446f",
+                borderRadius: "10px",
+                color: "#f5f7ff",
+                boxShadow: "0 8px 25px rgba(0, 0, 0, 0.35)"
+              }}
+              labelStyle={{
+                color: "#ffffff",
+                fontWeight: 600
+              }}
+              itemStyle={{
+                color: "#c4b5fd"
+              }}
+              cursor={{
+                fill: "rgba(99, 102, 241, 0.08)"
+              }}
+            />
 
             <Bar
               dataKey="count"
-              fill="#111827"
-              radius={[6, 6, 0, 0]}
-            />
+              radius={[8, 8, 0, 0]}
+            >
+
+              {attackStatistics.map((entry, index) => {
+
+                const colors = [
+                  "#3B82F6",
+                  "#8B5CF6",
+                  "#06B6D4",
+                  "#EC4899",
+                  "#F59E0B",
+                  "#22C55E",
+                  "#EF4444",
+                  "#14B8A6",
+                  "#6366F1",
+                  "#F97316"
+                ];
+
+                return (
+                  <Cell
+                    key={`cell-${index}`}
+                    fill={colors[index % colors.length]}
+                  />
+                );
+
+              })}
+
+            </Bar>
 
           </BarChart>
 
@@ -674,7 +775,14 @@ function App() {
     <BrowserRouter>
 
       <Routes>
-
+        <Route
+  path="/enterprise"
+  element={
+    <Layout>
+      <EnterpriseDashboard />
+    </Layout>
+  }
+/>
         <Route
           path="/"
           element={
@@ -707,6 +815,15 @@ function App() {
           element={
             <Layout>
               <ThreatDetails />
+            </Layout>
+          }
+        />
+
+        <Route
+          path="/attack-simulation"
+          element={
+            <Layout>
+              <AttackSimulation />
             </Layout>
           }
         />

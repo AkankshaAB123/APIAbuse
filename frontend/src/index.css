@@ -1,6 +1,6 @@
-/* =========================
+/* =========================================================
    GLOBAL
-========================= */
+========================================================= */
 
 * {
   margin: 0;
@@ -8,10 +8,14 @@
   box-sizing: border-box;
 }
 
+html {
+  background: #060914;
+}
+
 body {
   font-family: Arial, Helvetica, sans-serif;
-  background: #f5f7fb;
-  color: #111827;
+  background: #060914;
+  color: #eef2ff;
 }
 
 #root {
@@ -19,32 +23,46 @@ body {
 }
 
 
-/* =========================
+/* =========================================================
    MAIN LAYOUT
-========================= */
+========================================================= */
 
 .app {
   display: flex;
   min-height: 100vh;
+  background: #060914;
 }
 
 .main-content {
   flex: 1;
   min-width: 0;
+  background: #060914;
 }
 
 
-/* =========================
+/* =========================================================
    SIDEBAR
-========================= */
+========================================================= */
 
 .sidebar {
   width: 240px;
   min-height: 100vh;
-  background: #111827;
+  background:
+    linear-gradient(
+      180deg,
+      #0b1022 0%,
+      #090d1b 100%
+    );
+
   color: white;
   padding: 24px 18px;
+
   flex-shrink: 0;
+
+  border-right: 1px solid #202a4a;
+
+  box-shadow:
+    8px 0 30px rgba(37, 99, 235, 0.06);
 }
 
 .sidebar-logo {
@@ -55,6 +73,13 @@ body {
 .sidebar-logo h2 {
   font-size: 24px;
   font-weight: 700;
+
+  color: #ffffff;
+
+  letter-spacing: 0.3px;
+
+  text-shadow:
+    0 0 18px rgba(99, 102, 241, 0.35);
 }
 
 .sidebar-menu {
@@ -64,55 +89,110 @@ body {
 }
 
 .sidebar-menu a {
-  color: #d1d5db;
+  position: relative;
+
+  color: #9ba6c5;
+
   text-decoration: none;
+
   padding: 13px 12px;
+
   border-radius: 8px;
-  font-size: 16px;
-  transition: 0.2s;
+
+  font-size: 15px;
+
+  border: 1px solid transparent;
+
+  transition: all 0.2s ease;
 }
 
 .sidebar-menu a:hover {
-  background: #1f2937;
-  color: white;
+  background:
+    linear-gradient(
+      90deg,
+      rgba(59, 130, 246, 0.13),
+      rgba(139, 92, 246, 0.08)
+    );
+
+  color: #ffffff;
+
+  border-color: #29345a;
+
+  box-shadow:
+    0 0 18px rgba(59, 130, 246, 0.06);
+}
+
+.sidebar-menu a[href="/attack-simulation"] {
+  color: #b39cff;
 }
 
 
-/* =========================
+/* =========================================================
    NAVBAR
-========================= */
+========================================================= */
 
 .navbar {
   height: 70px;
-  background: white;
-  border-bottom: 1px solid #e5e7eb;
+
+  background:
+    linear-gradient(
+      90deg,
+      #0c1122,
+      #0d1225
+    );
+
+  border-bottom: 1px solid #202a4a;
 
   display: flex;
+
   align-items: center;
+
   justify-content: space-between;
 
   padding: 0 30px;
+
+  box-shadow:
+    0 5px 25px rgba(0, 0, 0, 0.15);
 }
 
 .navbar-title {
   font-size: 24px;
+
   font-weight: 700;
+
+  color: #f8faff;
+
+  text-shadow:
+    0 0 18px rgba(96, 165, 250, 0.15);
 }
 
 .navbar-user {
-  font-size: 15px;
-  color: #111827;
+  font-size: 14px;
+
+  color: #a0aac6;
+
+  font-weight: 600;
 }
 
 
-/* =========================
+/* =========================================================
    DASHBOARD
-========================= */
+========================================================= */
 
 .dashboard-content {
   padding: 38px;
+
   max-width: 1600px;
+
   margin: 0 auto;
+
+  background:
+    radial-gradient(
+      circle at 85% 0%,
+      rgba(79, 70, 229, 0.08),
+      transparent 28%
+    ),
+    #060914;
 }
 
 .dashboard-heading {
@@ -121,130 +201,233 @@ body {
 
 .dashboard-heading h1 {
   font-size: 36px;
+
   margin-bottom: 8px;
+
+  color: #ffffff;
 }
 
 .dashboard-heading p {
-  font-size: 17px;
-  color: #6b7280;
+  font-size: 16px;
+
+  color: #8f9bb9;
 }
 
 
-/* =========================
+/* =========================================================
    STATISTICS
-========================= */
+========================================================= */
 
 .stats-grid {
   display: grid;
+
   grid-template-columns: repeat(4, minmax(0, 1fr));
+
   gap: 20px;
+
   margin-bottom: 30px;
 }
 
 .stat-card {
-  background: white;
+  position: relative;
+
+  overflow: hidden;
+
+  background:
+    linear-gradient(
+      145deg,
+      #131a31 0%,
+      #0d1326 100%
+    );
+
   min-height: 155px;
+
   padding: 22px;
 
-  border: 1px solid #e5e7eb;
+  border: 1px solid #252f51;
+
   border-radius: 12px;
 
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+  box-shadow:
+    0 10px 30px rgba(0, 0, 0, 0.25);
 
   transition:
     transform 0.2s ease,
+    border-color 0.2s ease,
     box-shadow 0.2s ease;
 }
 
-.stat-card:hover {
-  transform: translateY(-2px);
+.stat-card::before {
+  content: "";
 
-  box-shadow: 0 5px 14px rgba(0, 0, 0, 0.08);
+  position: absolute;
+
+  top: 0;
+  left: 0;
+
+  width: 100%;
+  height: 2px;
+
+  background:
+    linear-gradient(
+      90deg,
+      #3b82f6,
+      #8b5cf6,
+      #ec4899
+    );
+
+  opacity: 0.8;
+}
+
+.stat-card:hover {
+  transform: translateY(-3px);
+
+  border-color: #394774;
+
+  box-shadow:
+    0 12px 35px rgba(59, 130, 246, 0.12);
 }
 
 .stat-card-top {
   display: flex;
+
   align-items: flex-start;
+
   justify-content: space-between;
 }
 
 .stat-title {
-  font-size: 14px;
-  color: #6b7280;
+  font-size: 13px;
+
+  color: #929dbb;
+
   margin-bottom: 10px;
 }
 
 .stat-value {
   font-size: 32px;
+
   font-weight: 700;
+
   line-height: 1;
+
+  color: #ffffff;
 }
 
 .stat-description {
-  font-size: 13px;
-  color: #9ca3af;
+  font-size: 12px;
+
+  color: #667291;
+
   margin-top: 18px;
 }
 
 .stat-icon {
   width: 46px;
+
   height: 46px;
 
   display: flex;
+
   align-items: center;
+
   justify-content: center;
 
   border-radius: 10px;
+
+  box-shadow:
+    inset 0 0 20px rgba(255, 255, 255, 0.03);
 }
 
 .stat-requests .stat-icon {
-  background: #eef2ff;
+  background: rgba(37, 99, 235, 0.18);
+
+  color: #60a5fa;
+
+  border: 1px solid rgba(59, 130, 246, 0.3);
+
+  box-shadow:
+    0 0 18px rgba(59, 130, 246, 0.1);
 }
 
 .stat-threats .stat-icon {
-  background: #fff7ed;
+  background: rgba(139, 92, 246, 0.18);
+
+  color: #a78bfa;
+
+  border: 1px solid rgba(139, 92, 246, 0.3);
+
+  box-shadow:
+    0 0 18px rgba(139, 92, 246, 0.1);
 }
 
 .stat-critical .stat-icon {
-  background: #fee2e2;
+  background: rgba(236, 72, 153, 0.14);
+
+  color: #fb7185;
+
+  border: 1px solid rgba(236, 72, 153, 0.3);
+
+  box-shadow:
+    0 0 18px rgba(236, 72, 153, 0.1);
 }
 
 .stat-blocked .stat-icon {
-  background: #ecfdf5;
+  background: rgba(20, 184, 166, 0.14);
+
+  color: #2dd4bf;
+
+  border: 1px solid rgba(20, 184, 166, 0.3);
+
+  box-shadow:
+    0 0 18px rgba(20, 184, 166, 0.1);
 }
 
 
-/* =========================
+/* =========================================================
    CHART CARDS
-========================= */
+========================================================= */
 
 .chart-card {
-  background: white;
+  background:
+    linear-gradient(
+      145deg,
+      #131a31 0%,
+      #0d1326 100%
+    );
+
   padding: 24px;
 
-  border: 1px solid #e5e7eb;
+  border: 1px solid #252f51;
+
   border-radius: 12px;
 
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+  box-shadow:
+    0 10px 30px rgba(0, 0, 0, 0.25);
 
   margin-bottom: 30px;
 }
 
 .chart-header {
   display: flex;
+
   align-items: center;
+
   justify-content: space-between;
 
   margin-bottom: 20px;
 }
 
 .chart-header h2 {
-  font-size: 22px;
+  font-size: 21px;
+
+  color: #f4f6ff;
 }
 
 .chart-header span {
-  font-size: 14px;
-  color: #6b7280;
+  font-size: 13px;
+
+  color: #6f7b9b;
 }
 
 .chart-container,
@@ -254,44 +437,66 @@ body {
 
 .risk-legend {
   display: flex;
+
   justify-content: center;
+
   gap: 25px;
+
   flex-wrap: wrap;
+
   margin-top: 10px;
 }
 
 .risk-legend-item {
   display: flex;
+
   align-items: center;
+
   gap: 8px;
 
-  font-size: 14px;
-  color: #4b5563;
+  font-size: 13px;
+
+  color: #929dbb;
 }
 
 .risk-dot {
   width: 10px;
+
   height: 10px;
 
   border-radius: 50%;
 
-  background: #9ca3af;
+  background: #687294;
 }
 
 
-/* =========================
-   PAGE
-========================= */
+/* =========================================================
+   GENERAL PAGE
+========================================================= */
 
 .page-content {
   padding: 38px;
+
   max-width: 1600px;
+
   margin: 0 auto;
+
+  background:
+    radial-gradient(
+      circle at 90% 0%,
+      rgba(139, 92, 246, 0.07),
+      transparent 28%
+    ),
+    #060914;
+
+  min-height: calc(100vh - 70px);
 }
 
 .page-header {
   display: flex;
+
   align-items: flex-start;
+
   justify-content: space-between;
 
   margin-bottom: 25px;
@@ -301,12 +506,16 @@ body {
   font-size: 36px;
 
   margin-top: 14px;
+
   margin-bottom: 8px;
+
+  color: #ffffff;
 }
 
 .page-header p {
-  color: #6b7280;
-  font-size: 16px;
+  color: #8f9bb9;
+
+  font-size: 15px;
 }
 
 .back-link {
@@ -316,35 +525,40 @@ body {
 
   gap: 6px;
 
-  color: #4b5563;
+  color: #60a5fa;
 
   text-decoration: none;
 
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .back-link:hover {
-  text-decoration: underline;
+  color: #bfdbfe;
+
+  text-shadow:
+    0 0 12px rgba(96, 165, 250, 0.35);
 }
 
 .threat-count {
-  background: #111827;
+  background: rgba(79, 70, 229, 0.13);
 
-  color: white;
+  color: #a5b4fc;
 
   padding: 9px 14px;
 
   border-radius: 7px;
 
-  font-size: 13px;
+  font-size: 12px;
 
-  font-weight: 600;
+  font-weight: 700;
+
+  border: 1px solid #303b69;
 }
 
 
-/* =========================
+/* =========================================================
    SEARCH
-========================= */
+========================================================= */
 
 .search-box {
   display: flex;
@@ -353,9 +567,9 @@ body {
 
   gap: 10px;
 
-  background: white;
+  background: #10162a;
 
-  border: 1px solid #e5e7eb;
+  border: 1px solid #252f51;
 
   border-radius: 10px;
 
@@ -365,11 +579,20 @@ body {
 
   margin-bottom: 20px;
 
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+  box-shadow:
+    0 8px 25px rgba(0, 0, 0, 0.18);
+}
+
+.search-box:focus-within {
+  border-color: #4f63c7;
+
+  box-shadow:
+    0 0 0 2px rgba(79, 99, 199, 0.1),
+    0 8px 25px rgba(0, 0, 0, 0.2);
 }
 
 .search-box svg {
-  color: #9ca3af;
+  color: #697595;
 
   flex-shrink: 0;
 }
@@ -387,24 +610,24 @@ body {
 
   font-size: 14px;
 
-  color: #111827;
+  color: #e8ebf8;
 }
 
 .search-box input::placeholder {
-  color: #9ca3af;
+  color: #626d8c;
 }
 
 
-/* =========================
+/* =========================================================
    FILTERS
-========================= */
+========================================================= */
 
 .filters {
-  background: white;
+  background: #10162a;
 
   padding: 20px 24px;
 
-  border: 1px solid #e5e7eb;
+  border: 1px solid #252f51;
 
   border-radius: 12px;
 
@@ -416,7 +639,8 @@ body {
 
   margin-bottom: 20px;
 
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+  box-shadow:
+    0 8px 25px rgba(0, 0, 0, 0.18);
 }
 
 .filter-group {
@@ -430,11 +654,11 @@ body {
 }
 
 .filter-group label {
-  font-size: 13px;
+  font-size: 12px;
 
   font-weight: 600;
 
-  color: #4b5563;
+  color: #909ab8;
 }
 
 .filter-group select {
@@ -442,21 +666,26 @@ body {
 
   padding: 0 12px;
 
-  border: 1px solid #d1d5db;
+  border: 1px solid #303b5d;
 
   border-radius: 6px;
 
-  background: white;
+  background: #0a0f1e;
 
-  font-size: 14px;
+  color: #e5e8f5;
+
+  font-size: 13px;
 
   cursor: pointer;
+
+  outline: none;
 }
 
 .filter-group select:focus {
-  outline: none;
+  border-color: #596cff;
 
-  border-color: #6b7280;
+  box-shadow:
+    0 0 0 2px rgba(89, 108, 255, 0.12);
 }
 
 .reset-button {
@@ -464,38 +693,45 @@ body {
 
   padding: 0 18px;
 
-  border: none;
+  border: 1px solid #303b5d;
 
   border-radius: 6px;
 
-  background: #111827;
+  background: #181f38;
 
-  color: white;
+  color: #c4cbe0;
 
-  font-size: 14px;
+  font-size: 13px;
 
   cursor: pointer;
+
+  transition: 0.2s;
 }
 
 .reset-button:hover {
-  background: #374151;
+  background: #242d4c;
+
+  border-color: #4b5a88;
+
+  color: #ffffff;
 }
 
 
-/* =========================
+/* =========================================================
    THREAT TABLE
-========================= */
+========================================================= */
 
 .threat-section {
-  background: white;
+  background: #10162a;
 
   padding: 24px;
 
-  border: 1px solid #e5e7eb;
+  border: 1px solid #252f51;
 
   border-radius: 12px;
 
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+  box-shadow:
+    0 10px 30px rgba(0, 0, 0, 0.22);
 
   width: 100%;
 }
@@ -511,13 +747,15 @@ body {
 }
 
 .section-header h2 {
-  font-size: 22px;
+  font-size: 21px;
+
+  color: #f4f6ff;
 }
 
 .section-header span {
-  color: #6b7280;
+  color: #6f7b9b;
 
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .table-container {
@@ -539,33 +777,44 @@ th {
 
   padding: 14px 12px;
 
-  background: #f8fafc;
+  background: #0c1222;
 
-  color: #374151;
+  color: #8995b4;
 
-  font-size: 14px;
+  font-size: 12px;
 
   font-weight: 600;
 
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid #252f51;
 }
 
 td {
   padding: 16px 12px;
 
-  font-size: 14px;
+  font-size: 13px;
 
-  border-bottom: 1px solid #e5e7eb;
+  color: #c7cde0;
+
+  border-bottom: 1px solid #1c2540;
 
   vertical-align: middle;
 }
 
+tbody tr {
+  transition: background 0.2s ease;
+}
+
 tbody tr:hover {
-  background: #f9fafb;
+  background:
+    linear-gradient(
+      90deg,
+      rgba(59, 130, 246, 0.06),
+      rgba(139, 92, 246, 0.04)
+    );
 }
 
 .threat-link {
-  color: #111827;
+  color: #82b5ff;
 
   font-weight: 600;
 
@@ -573,13 +822,15 @@ tbody tr:hover {
 }
 
 .threat-link:hover {
+  color: #c0d8ff;
+
   text-decoration: underline;
 }
 
 
-/* =========================
+/* =========================================================
    RISK BADGES
-========================= */
+========================================================= */
 
 .risk-badge {
   display: inline-flex;
@@ -592,43 +843,58 @@ tbody tr:hover {
 
   border-radius: 6px;
 
-  font-size: 12px;
+  font-size: 11px;
 
   font-weight: 700;
 }
 
 .risk-score {
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .risk-severity {
-  font-size: 11px;
+  font-size: 10px;
 }
 
 .risk-low {
-  background: #dcfce7;
-  color: #166534;
+  background: rgba(16, 185, 129, 0.12);
+
+  color: #34d399;
+
+  border: 1px solid rgba(16, 185, 129, 0.35);
 }
 
 .risk-medium {
-  background: #fef3c7;
-  color: #92400e;
+  background: rgba(245, 158, 11, 0.12);
+
+  color: #fbbf24;
+
+  border: 1px solid rgba(245, 158, 11, 0.35);
 }
 
 .risk-high {
-  background: #ffedd5;
-  color: #9a3412;
+  background: rgba(249, 115, 22, 0.13);
+
+  color: #fb923c;
+
+  border: 1px solid rgba(249, 115, 22, 0.35);
 }
 
 .risk-critical {
-  background: #fee2e2;
-  color: #991b1b;
+  background: rgba(236, 72, 153, 0.13);
+
+  color: #fb7185;
+
+  border: 1px solid rgba(236, 72, 153, 0.4);
+
+  box-shadow:
+    0 0 12px rgba(236, 72, 153, 0.08);
 }
 
 
-/* =========================
+/* =========================================================
    ACTION
-========================= */
+========================================================= */
 
 .action {
   display: inline-block;
@@ -637,11 +903,13 @@ tbody tr:hover {
 
   border-radius: 6px;
 
-  background: #f3f4f6;
+  background: #181f38;
 
-  color: #374151;
+  color: #c4cbe0;
 
-  font-size: 12px;
+  border: 1px solid #303b5d;
+
+  font-size: 11px;
 
   font-weight: 700;
 }
@@ -651,13 +919,13 @@ tbody tr:hover {
 
   padding: 30px;
 
-  color: #6b7280;
+  color: #687391;
 }
 
 
-/* =========================
+/* =========================================================
    ANALYTICS
-========================= */
+========================================================= */
 
 .analytics-summary {
   display: grid;
@@ -670,9 +938,14 @@ tbody tr:hover {
 }
 
 .analytics-card {
-  background: white;
+  background:
+    linear-gradient(
+      145deg,
+      #131a31,
+      #0d1326
+    );
 
-  border: 1px solid #e5e7eb;
+  border: 1px solid #252f51;
 
   border-radius: 12px;
 
@@ -684,15 +957,16 @@ tbody tr:hover {
 
   gap: 16px;
 
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+  box-shadow:
+    0 10px 30px rgba(0, 0, 0, 0.22);
 }
 
 .analytics-card span {
   display: block;
 
-  color: #6b7280;
+  color: #909ab8;
 
-  font-size: 13px;
+  font-size: 12px;
 
   margin-bottom: 8px;
 }
@@ -701,6 +975,8 @@ tbody tr:hover {
   display: block;
 
   font-size: 28px;
+
+  color: #f7f8ff;
 }
 
 .analytics-icon {
@@ -718,28 +994,51 @@ tbody tr:hover {
 }
 
 .analytics-blue {
-  background: #eef2ff;
+  background: rgba(59, 130, 246, 0.16);
+
+  color: #60a5fa;
+
+  border: 1px solid rgba(59, 130, 246, 0.3);
 }
 
 .analytics-red {
-  background: #fee2e2;
+  background: rgba(236, 72, 153, 0.13);
+
+  color: #fb7185;
+
+  border: 1px solid rgba(236, 72, 153, 0.3);
 }
 
 .analytics-orange {
-  background: #fff7ed;
+  background: rgba(249, 115, 22, 0.13);
+
+  color: #fb923c;
+
+  border: 1px solid rgba(249, 115, 22, 0.3);
 }
 
 .analytics-green {
-  background: #ecfdf5;
+  background: rgba(20, 184, 166, 0.13);
+
+  color: #2dd4bf;
+
+  border: 1px solid rgba(20, 184, 166, 0.3);
 }
 
 
-/* Analytics charts */
+/* =========================================================
+   ANALYTICS CHARTS
+========================================================= */
 
 .analytics-chart-card {
-  background: white;
+  background:
+    linear-gradient(
+      145deg,
+      #131a31,
+      #0d1326
+    );
 
-  border: 1px solid #e5e7eb;
+  border: 1px solid #252f51;
 
   border-radius: 12px;
 
@@ -747,7 +1046,8 @@ tbody tr:hover {
 
   margin-bottom: 25px;
 
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+  box-shadow:
+    0 10px 30px rgba(0, 0, 0, 0.22);
 }
 
 .analytics-chart-header {
@@ -764,16 +1064,29 @@ tbody tr:hover {
   font-size: 21px;
 
   margin-bottom: 6px;
+
+  color: #f4f6ff;
 }
 
 .analytics-chart-header p {
-  color: #6b7280;
+  color: #687391;
 
-  font-size: 14px;
+  font-size: 13px;
+}
+
+.analytics-chart-header svg {
+  color: #a78bfa;
+
+  filter:
+    drop-shadow(
+      0 0 7px rgba(167, 139, 250, 0.25)
+    );
 }
 
 
-/* Analytics bottom cards */
+/* =========================================================
+   ANALYTICS BOTTOM CARDS
+========================================================= */
 
 .analytics-bottom-grid {
   display: grid;
@@ -784,21 +1097,29 @@ tbody tr:hover {
 }
 
 .analytics-info-card {
-  background: white;
+  background:
+    linear-gradient(
+      145deg,
+      #131a31,
+      #0d1326
+    );
 
-  border: 1px solid #e5e7eb;
+  border: 1px solid #252f51;
 
   border-radius: 12px;
 
   padding: 25px;
 
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+  box-shadow:
+    0 10px 30px rgba(0, 0, 0, 0.22);
 }
 
 .analytics-info-card h2 {
   font-size: 21px;
 
   margin-bottom: 20px;
+
+  color: #f4f6ff;
 }
 
 .risk-row {
@@ -810,7 +1131,7 @@ tbody tr:hover {
 
   padding: 15px 0;
 
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid #1c2540;
 }
 
 .risk-row:last-child {
@@ -818,11 +1139,13 @@ tbody tr:hover {
 }
 
 .risk-row span {
-  color: #6b7280;
+  color: #909ab8;
 }
 
 .risk-row strong {
-  font-size: 16px;
+  font-size: 15px;
+
+  color: #e6e9f5;
 }
 
 .summary-item {
@@ -832,7 +1155,7 @@ tbody tr:hover {
 
   padding: 16px 0;
 
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid #1c2540;
 }
 
 .summary-item:last-child {
@@ -841,33 +1164,50 @@ tbody tr:hover {
 
 .summary-item svg {
   flex-shrink: 0;
+
+  color: #60a5fa;
+
+  filter:
+    drop-shadow(
+      0 0 7px rgba(96, 165, 250, 0.2)
+    );
 }
 
 .summary-item strong {
   display: block;
 
   margin-bottom: 5px;
+
+  color: #e1e5f3;
 }
 
 .summary-item p {
-  color: #6b7280;
+  color: #687391;
 
-  font-size: 14px;
+  font-size: 13px;
 
   line-height: 1.5;
 }
 
 
-/* =========================
+/* =========================================================
    THREAT DETAILS
-========================= */
+========================================================= */
 
 .details-page {
   min-height: 100vh;
 
-  background: #f5f7fb;
+  background:
+    radial-gradient(
+      circle at top right,
+      rgba(139, 92, 246, 0.08),
+      transparent 30%
+    ),
+    #060914;
 
   padding: 40px;
+
+  color: #e7eaf6;
 }
 
 .details-header {
@@ -884,20 +1224,24 @@ tbody tr:hover {
   margin-top: 15px;
 
   font-size: 32px;
+
+  color: #ffffff;
 }
 
 .threat-id {
-  background: #111827;
+  background: rgba(79, 70, 229, 0.13);
 
-  color: white;
+  color: #a5b4fc;
 
   padding: 8px 14px;
 
   border-radius: 6px;
 
-  font-size: 13px;
+  font-size: 12px;
 
   font-weight: bold;
+
+  border: 1px solid #303b69;
 }
 
 .details-grid {
@@ -911,27 +1255,37 @@ tbody tr:hover {
 }
 
 .detail-card {
-  background: white;
+  background:
+    linear-gradient(
+      145deg,
+      #131a31,
+      #0d1326
+    );
 
   padding: 22px;
 
   border-radius: 10px;
 
-  border: 1px solid #e5e7eb;
+  border: 1px solid #252f51;
+
+  box-shadow:
+    0 10px 30px rgba(0, 0, 0, 0.22);
 }
 
 .detail-label {
   display: block;
 
-  color: #6b7280;
+  color: #687391;
 
-  font-size: 13px;
+  font-size: 12px;
 
   margin-bottom: 10px;
 }
 
 .detail-value {
-  font-size: 20px;
+  font-size: 19px;
+
+  color: #f4f6ff;
 }
 
 .risk-value {
@@ -939,21 +1293,31 @@ tbody tr:hover {
 }
 
 .information-card {
-  background: white;
+  background:
+    linear-gradient(
+      145deg,
+      #131a31,
+      #0d1326
+    );
 
   padding: 25px;
 
   border-radius: 10px;
 
-  border: 1px solid #e5e7eb;
+  border: 1px solid #252f51;
 
   margin-bottom: 20px;
+
+  box-shadow:
+    0 10px 30px rgba(0, 0, 0, 0.22);
 }
 
 .information-card h2 {
   font-size: 20px;
 
   margin-bottom: 20px;
+
+  color: #f4f6ff;
 }
 
 .information-row {
@@ -963,7 +1327,7 @@ tbody tr:hover {
 
   padding: 13px 0;
 
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid #1c2540;
 }
 
 .information-row:last-child {
@@ -971,19 +1335,1400 @@ tbody tr:hover {
 }
 
 .information-row span {
-  color: #6b7280;
+  color: #687391;
 }
 
 .placeholder-text {
-  color: #6b7280;
+  color: #909ab8;
 
   line-height: 1.6;
 }
 
 
-/* =========================
+/* =========================================================
+   ATTACK SIMULATION
+========================================================= */
+
+.attack-simulation-page {
+  min-height: calc(100vh - 70px);
+
+  padding: 34px;
+
+  background:
+    radial-gradient(
+      circle at top right,
+      rgba(99, 102, 241, 0.13),
+      transparent 35%
+    ),
+    radial-gradient(
+      circle at bottom left,
+      rgba(6, 182, 212, 0.05),
+      transparent 30%
+    ),
+    #060914;
+
+  color: #e7eaf6;
+}
+
+.attack-simulation-header {
+  display: flex;
+
+  align-items: flex-start;
+
+  justify-content: space-between;
+
+  gap: 25px;
+
+  margin-bottom: 30px;
+}
+
+.page-kicker {
+  color: #60a5fa;
+
+  font-size: 12px;
+
+  font-weight: 700;
+
+  letter-spacing: 2px;
+
+  margin-bottom: 8px;
+
+  text-shadow:
+    0 0 12px rgba(96, 165, 250, 0.25);
+}
+
+.attack-simulation-header h1 {
+  font-size: 34px;
+
+  color: #ffffff;
+
+  margin-bottom: 8px;
+}
+
+.attack-simulation-header p {
+  color: #909ab8;
+
+  font-size: 15px;
+}
+
+.demo-status {
+  display: flex;
+
+  align-items: center;
+
+  gap: 9px;
+
+  padding: 10px 14px;
+
+  border: 1px solid #303b5d;
+
+  border-radius: 8px;
+
+  background: #11172b;
+
+  color: #a0aac6;
+
+  font-size: 11px;
+
+  font-weight: 700;
+
+  letter-spacing: 1px;
+
+  white-space: nowrap;
+}
+
+.status-dot {
+  width: 8px;
+
+  height: 8px;
+
+  border-radius: 50%;
+
+  background: #2dd4bf;
+
+  box-shadow:
+    0 0 14px rgba(45, 212, 191, 0.9);
+}
+
+
+/* =========================================================
+   SIMULATION LAYOUT
+========================================================= */
+
+.simulation-layout {
+  display: grid;
+
+  grid-template-columns: 270px minmax(0, 1fr);
+
+  gap: 22px;
+
+  max-width: 1500px;
+}
+
+
+/* =========================================================
+   ATTACK LIST
+========================================================= */
+
+.attack-list-panel {
+  background:
+    linear-gradient(
+      145deg,
+      #131a31,
+      #0d1326
+    );
+
+  border: 1px solid #252f51;
+
+  border-radius: 12px;
+
+  overflow: hidden;
+
+  box-shadow:
+    0 12px 35px rgba(0, 0, 0, 0.28);
+}
+
+.panel-title {
+  display: flex;
+
+  align-items: center;
+
+  justify-content: space-between;
+
+  padding: 18px;
+
+  border-bottom: 1px solid #252f51;
+
+  color: #cbd3e8;
+
+  font-size: 12px;
+
+  font-weight: 700;
+
+  letter-spacing: 1.5px;
+}
+
+.attack-count {
+  display: flex;
+
+  align-items: center;
+
+  justify-content: center;
+
+  min-width: 25px;
+
+  height: 25px;
+
+  border-radius: 6px;
+
+  background: rgba(99, 102, 241, 0.16);
+
+  color: #a5b4fc;
+
+  font-size: 12px;
+
+  border: 1px solid rgba(99, 102, 241, 0.25);
+}
+
+.attack-list {
+  display: flex;
+
+  flex-direction: column;
+
+  padding: 10px;
+}
+
+.attack-item {
+  width: 100%;
+
+  display: flex;
+
+  align-items: center;
+
+  gap: 9px;
+
+  padding: 13px 12px;
+
+  margin-bottom: 4px;
+
+  border: 1px solid transparent;
+
+  border-radius: 7px;
+
+  background: transparent;
+
+  color: #919bbb;
+
+  font-family: inherit;
+
+  font-size: 13px;
+
+  text-align: left;
+
+  cursor: pointer;
+
+  transition: all 0.2s ease;
+}
+
+.attack-item:hover {
+  background:
+    linear-gradient(
+      90deg,
+      rgba(59, 130, 246, 0.1),
+      rgba(139, 92, 246, 0.07)
+    );
+
+  color: #edf0ff;
+
+  border-color: #2b365c;
+}
+
+.attack-item.active {
+  background:
+    linear-gradient(
+      90deg,
+      rgba(59, 130, 246, 0.25),
+      rgba(139, 92, 246, 0.2)
+    );
+
+  border-color: #4f63c7;
+
+  color: #edf1ff;
+
+  box-shadow:
+    0 0 22px rgba(79, 99, 199, 0.15);
+}
+
+.attack-indicator {
+  width: 15px;
+
+  color: #65708e;
+
+  font-size: 18px;
+
+  line-height: 1;
+}
+
+.attack-item.active .attack-indicator {
+  color: #8fa3ff;
+
+  text-shadow:
+    0 0 10px rgba(143, 163, 255, 0.6);
+}
+
+
+/* =========================================================
+   MAIN SIMULATION
+========================================================= */
+
+.simulation-main {
+  min-width: 0;
+
+  display: flex;
+
+  flex-direction: column;
+
+  gap: 22px;
+}
+
+
+/* =========================================================
+   SELECTED ATTACK
+========================================================= */
+
+.selected-attack-card {
+  background:
+    linear-gradient(
+      145deg,
+      #131a31,
+      #0d1326
+    );
+
+  border: 1px solid #252f51;
+
+  border-radius: 12px;
+
+  padding: 26px;
+
+  box-shadow:
+    0 12px 35px rgba(0, 0, 0, 0.28);
+}
+
+.selected-attack-top {
+  display: flex;
+
+  align-items: flex-start;
+
+  justify-content: space-between;
+
+  gap: 20px;
+
+  margin-bottom: 14px;
+}
+
+.section-label {
+  color: #687391;
+
+  font-size: 10px;
+
+  font-weight: 700;
+
+  letter-spacing: 1.5px;
+
+  margin-bottom: 7px;
+}
+
+.selected-attack-card h2 {
+  color: #f7f8ff;
+
+  font-size: 25px;
+}
+
+.attack-tag {
+  padding: 6px 10px;
+
+  border: 1px solid #586ce1;
+
+  border-radius: 5px;
+
+  background:
+    linear-gradient(
+      90deg,
+      rgba(59, 130, 246, 0.16),
+      rgba(139, 92, 246, 0.16)
+    );
+
+  color: #a9b9ff;
+
+  font-size: 10px;
+
+  font-weight: 700;
+
+  letter-spacing: 1px;
+
+  white-space: nowrap;
+}
+
+.attack-description {
+  max-width: 850px;
+
+  color: #919bbb;
+
+  font-size: 14px;
+
+  line-height: 1.6;
+
+  margin-bottom: 24px;
+}
+
+
+/* =========================================================
+   PREDEFINED REQUEST
+========================================================= */
+
+.request-section {
+  margin-bottom: 22px;
+}
+
+.request-box {
+  background:
+    linear-gradient(
+      145deg,
+      #070b16,
+      #0a0f1d
+    );
+
+  border: 1px solid #283250;
+
+  border-radius: 8px;
+
+  overflow: hidden;
+
+  box-shadow:
+    inset 0 0 30px rgba(59, 130, 246, 0.025);
+}
+
+.request-line {
+  display: flex;
+
+  align-items: center;
+
+  gap: 12px;
+
+  padding: 13px 15px;
+
+  border-bottom: 1px solid #283250;
+
+  color: #e8ebf7;
+
+  font-family:
+    "Cascadia Code",
+    "Consolas",
+    monospace;
+
+  font-size: 14px;
+}
+
+.method {
+  padding: 4px 8px;
+
+  border-radius: 4px;
+
+  background: rgba(20, 184, 166, 0.13);
+
+  color: #5eead4;
+
+  font-size: 11px;
+
+  font-weight: 700;
+
+  border: 1px solid rgba(20, 184, 166, 0.25);
+}
+
+.request-user {
+  padding: 11px 15px 0;
+
+  color: #65708e;
+
+  font-size: 11px;
+
+  font-family:
+    "Cascadia Code",
+    "Consolas",
+    monospace;
+}
+
+.request-box pre {
+  padding: 10px 15px 16px;
+
+  margin: 0;
+
+  overflow-x: auto;
+
+  color: #cbd2e5;
+
+  font-family:
+    "Cascadia Code",
+    "Consolas",
+    monospace;
+
+  font-size: 12px;
+
+  line-height: 1.7;
+}
+
+
+/* =========================================================
+   EXECUTE BUTTON
+========================================================= */
+
+.execute-button {
+  display: inline-flex;
+
+  align-items: center;
+
+  justify-content: center;
+
+  align-self: flex-start;
+
+  min-height: 44px;
+
+  padding: 0 20px;
+
+  border: 1px solid #5c69e8;
+
+  border-radius: 7px;
+
+  background:
+    linear-gradient(
+      135deg,
+      #2563eb,
+      #7c3aed
+    );
+
+  color: white;
+
+  font-family: inherit;
+
+  font-size: 12px;
+
+  font-weight: 700;
+
+  letter-spacing: 0.5px;
+
+  cursor: pointer;
+
+  transition: all 0.2s ease;
+
+  box-shadow:
+    0 6px 22px rgba(79, 70, 229, 0.25);
+}
+
+.execute-button:hover:not(:disabled) {
+  background:
+    linear-gradient(
+      135deg,
+      #3b82f6,
+      #8b5cf6
+    );
+
+  transform: translateY(-1px);
+
+  box-shadow:
+    0 9px 28px rgba(99, 102, 241, 0.38);
+}
+
+.execute-button:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.execute-button:disabled {
+  background: #252d54;
+
+  border-color: #39446f;
+
+  color: #8490bb;
+
+  cursor: not-allowed;
+}
+
+
+/* =========================================================
+   SIMULATION CONSOLE
+========================================================= */
+
+.console-panel {
+  background: #070b16;
+
+  border: 1px solid #283250;
+
+  border-radius: 12px;
+
+  overflow: hidden;
+
+  box-shadow:
+    0 12px 35px rgba(0, 0, 0, 0.28);
+}
+
+.console-header {
+  display: flex;
+
+  align-items: center;
+
+  justify-content: space-between;
+
+  padding: 13px 16px;
+
+  border-bottom: 1px solid #283250;
+
+  background:
+    linear-gradient(
+      90deg,
+      #0c1222,
+      #11162a
+    );
+}
+
+.console-title {
+  display: flex;
+
+  align-items: center;
+
+  gap: 9px;
+
+  color: #cbd2e5;
+
+  font-size: 11px;
+
+  font-weight: 700;
+
+  letter-spacing: 1.2px;
+}
+
+.terminal-icon {
+  color: #2dd4bf;
+
+  font-size: 9px;
+
+  text-shadow:
+    0 0 12px rgba(45, 212, 191, 0.9);
+}
+
+.console-status {
+  color: #65708e;
+
+  font-family:
+    "Cascadia Code",
+    "Consolas",
+    monospace;
+
+  font-size: 10px;
+}
+
+.console-body {
+  min-height: 190px;
+
+  padding: 18px;
+
+  font-family:
+    "Cascadia Code",
+    "Consolas",
+    monospace;
+
+  font-size: 12px;
+
+  line-height: 1.9;
+
+  overflow-x: auto;
+}
+
+.log-line {
+  color: #8d97b4;
+}
+
+.log-detection {
+  color: #fb7185;
+
+  font-weight: 700;
+
+  text-shadow:
+    0 0 10px rgba(251, 113, 133, 0.2);
+}
+
+.log-risk {
+  color: #fbbf24;
+
+  font-weight: 700;
+}
+
+.cursor {
+  color: #2dd4bf;
+
+  animation: terminalBlink 1s steps(2, start) infinite;
+}
+
+@keyframes terminalBlink {
+  50% {
+    opacity: 0;
+  }
+}
+/* =========================================================
+   ENTERPRISE / USER DASHBOARD
+========================================================= */
+
+.enterprise-status {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+
+  padding: 10px 15px;
+
+  border: 1px solid rgba(45, 212, 191, 0.3);
+  border-radius: 8px;
+
+  background: rgba(20, 184, 166, 0.08);
+
+  color: #5eead4;
+
+  font-size: 11px;
+  font-weight: 700;
+
+  letter-spacing: 1px;
+
+  white-space: nowrap;
+
+  box-shadow:
+    0 0 18px rgba(20, 184, 166, 0.08);
+}
+
+
+/* =========================================================
+   ENTERPRISE SECURITY BANNER
+========================================================= */
+
+.enterprise-security-banner {
+  position: relative;
+
+  display: flex;
+  align-items: center;
+
+  gap: 18px;
+
+  padding: 22px 24px;
+
+  margin-bottom: 25px;
+
+  background:
+    linear-gradient(
+      135deg,
+      rgba(37, 99, 235, 0.12),
+      rgba(139, 92, 246, 0.10),
+      rgba(20, 184, 166, 0.06)
+    );
+
+  border: 1px solid #30416b;
+
+  border-radius: 12px;
+
+  overflow: hidden;
+
+  box-shadow:
+    0 10px 30px rgba(0, 0, 0, 0.22),
+    0 0 30px rgba(59, 130, 246, 0.05);
+}
+
+.enterprise-security-banner::before {
+  content: "";
+
+  position: absolute;
+
+  top: 0;
+  left: 0;
+
+  width: 100%;
+  height: 2px;
+
+  background:
+    linear-gradient(
+      90deg,
+      #3b82f6,
+      #8b5cf6,
+      #06b6d4,
+      #2dd4bf
+    );
+}
+
+.enterprise-security-icon {
+  width: 58px;
+  height: 58px;
+
+  flex-shrink: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 12px;
+
+  background: rgba(20, 184, 166, 0.12);
+
+  color: #5eead4;
+
+  border: 1px solid rgba(20, 184, 166, 0.3);
+
+  box-shadow:
+    0 0 22px rgba(20, 184, 166, 0.10);
+}
+
+.enterprise-security-text {
+  flex: 1;
+}
+
+.enterprise-security-text h2 {
+  color: #f8faff;
+
+  font-size: 20px;
+
+  margin-bottom: 5px;
+}
+
+.enterprise-security-text p {
+  color: #8f9bb9;
+
+  font-size: 13px;
+
+  line-height: 1.5;
+}
+
+.security-status-badge {
+  padding: 8px 13px;
+
+  border-radius: 6px;
+
+  background: rgba(34, 197, 94, 0.12);
+
+  color: #4ade80;
+
+  border: 1px solid rgba(34, 197, 94, 0.3);
+
+  font-size: 10px;
+
+  font-weight: 700;
+
+  letter-spacing: 1px;
+}
+
+
+/* =========================================================
+   ENTERPRISE STATISTICS
+========================================================= */
+
+.enterprise-stat-card {
+  position: relative;
+
+  display: flex;
+  align-items: center;
+
+  gap: 15px;
+
+  min-height: 145px;
+
+  padding: 22px;
+
+  background:
+    linear-gradient(
+      145deg,
+      #131a31 0%,
+      #0d1326 100%
+    );
+
+  border: 1px solid #252f51;
+
+  border-radius: 12px;
+
+  overflow: hidden;
+
+  box-shadow:
+    0 10px 30px rgba(0, 0, 0, 0.25);
+
+  transition:
+    transform 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.enterprise-stat-card::before {
+  content: "";
+
+  position: absolute;
+
+  top: 0;
+  left: 0;
+
+  width: 100%;
+  height: 2px;
+
+  background:
+    linear-gradient(
+      90deg,
+      #3b82f6,
+      #8b5cf6,
+      #06b6d4
+    );
+
+  opacity: 0.75;
+}
+
+.enterprise-stat-card:hover {
+  transform: translateY(-3px);
+
+  border-color: #394774;
+
+  box-shadow:
+    0 14px 35px rgba(59, 130, 246, 0.10);
+}
+
+.enterprise-stat-icon {
+  width: 50px;
+  height: 50px;
+
+  flex-shrink: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 11px;
+}
+
+.enterprise-blue {
+  background: rgba(59, 130, 246, 0.15);
+
+  color: #60a5fa;
+
+  border: 1px solid rgba(59, 130, 246, 0.3);
+
+  box-shadow:
+    0 0 18px rgba(59, 130, 246, 0.08);
+}
+
+.enterprise-red {
+  background: rgba(239, 68, 68, 0.13);
+
+  color: #fb7185;
+
+  border: 1px solid rgba(239, 68, 68, 0.3);
+
+  box-shadow:
+    0 0 18px rgba(239, 68, 68, 0.08);
+}
+
+.enterprise-orange {
+  background: rgba(249, 115, 22, 0.13);
+
+  color: #fb923c;
+
+  border: 1px solid rgba(249, 115, 22, 0.3);
+
+  box-shadow:
+    0 0 18px rgba(249, 115, 22, 0.08);
+}
+
+.enterprise-green {
+  background: rgba(20, 184, 166, 0.13);
+
+  color: #2dd4bf;
+
+  border: 1px solid rgba(20, 184, 166, 0.3);
+
+  box-shadow:
+    0 0 18px rgba(20, 184, 166, 0.08);
+}
+
+.enterprise-stat-card span {
+  display: block;
+
+  color: #909ab8;
+
+  font-size: 12px;
+
+  margin-bottom: 6px;
+}
+
+.enterprise-stat-card strong {
+  display: block;
+
+  color: #ffffff;
+
+  font-size: 27px;
+
+  line-height: 1.1;
+
+  margin-bottom: 6px;
+}
+
+.enterprise-stat-card small {
+  display: block;
+
+  color: #667291;
+
+  font-size: 11px;
+}
+
+
+/* =========================================================
+   ENTERPRISE CONTENT GRID
+========================================================= */
+
+.enterprise-grid {
+  display: grid;
+
+  grid-template-columns: 1.35fr 1fr;
+
+  gap: 25px;
+
+  margin-bottom: 25px;
+}
+
+.enterprise-card {
+  position: relative;
+
+  background:
+    linear-gradient(
+      145deg,
+      #131a31,
+      #0d1326
+    );
+
+  border: 1px solid #252f51;
+
+  border-radius: 12px;
+
+  padding: 24px;
+
+  box-shadow:
+    0 10px 30px rgba(0, 0, 0, 0.22);
+
+  overflow: hidden;
+}
+
+.enterprise-card::before {
+  content: "";
+
+  position: absolute;
+
+  top: 0;
+  left: 0;
+
+  width: 100%;
+  height: 2px;
+
+  background:
+    linear-gradient(
+      90deg,
+      #3b82f6,
+      #8b5cf6,
+      #ec4899
+    );
+
+  opacity: 0.65;
+}
+
+.enterprise-card-header {
+  display: flex;
+
+  align-items: flex-start;
+
+  justify-content: space-between;
+
+  gap: 15px;
+
+  margin-bottom: 20px;
+}
+
+.enterprise-card-header h2 {
+  color: #f4f6ff;
+
+  font-size: 20px;
+
+  margin-bottom: 5px;
+}
+
+.enterprise-card-header p {
+  color: #687391;
+
+  font-size: 12px;
+}
+
+.enterprise-card-header > svg {
+  flex-shrink: 0;
+
+  color: #a78bfa;
+
+  filter:
+    drop-shadow(
+      0 0 8px rgba(167, 139, 250, 0.25)
+    );
+}
+
+
+/* =========================================================
+   ENTERPRISE THREAT LIST
+========================================================= */
+
+.enterprise-threat-list {
+  display: flex;
+
+  flex-direction: column;
+}
+
+.enterprise-threat-item {
+  display: flex;
+
+  align-items: center;
+
+  justify-content: space-between;
+
+  gap: 15px;
+
+  padding: 15px 0;
+
+  border-bottom: 1px solid #1c2540;
+
+  transition: all 0.2s ease;
+}
+
+.enterprise-threat-item:last-child {
+  border-bottom: none;
+}
+
+.enterprise-threat-item:hover {
+  padding-left: 5px;
+  padding-right: 5px;
+
+  background:
+    linear-gradient(
+      90deg,
+      rgba(59, 130, 246, 0.04),
+      rgba(139, 92, 246, 0.04)
+    );
+}
+
+.enterprise-threat-main {
+  display: flex;
+
+  align-items: center;
+
+  gap: 12px;
+
+  min-width: 0;
+}
+
+.enterprise-threat-icon {
+  width: 36px;
+  height: 36px;
+
+  flex-shrink: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 8px;
+
+  background: rgba(239, 68, 68, 0.10);
+
+  color: #fb7185;
+
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.enterprise-threat-main strong {
+  display: block;
+
+  color: #e9ecf8;
+
+  font-size: 13px;
+
+  margin-bottom: 4px;
+}
+
+.enterprise-threat-main span {
+  display: block;
+
+  color: #667291;
+
+  font-size: 11px;
+}
+
+.enterprise-threat-meta {
+  display: flex;
+
+  align-items: center;
+
+  gap: 12px;
+
+  flex-shrink: 0;
+}
+
+.enterprise-severity {
+  padding: 5px 8px;
+
+  border-radius: 5px;
+
+  font-size: 9px;
+
+  font-weight: 700;
+
+  letter-spacing: 0.5px;
+}
+
+.enterprise-severity.critical {
+  color: #fb7185;
+
+  background: rgba(236, 72, 153, 0.12);
+
+  border: 1px solid rgba(236, 72, 153, 0.3);
+}
+
+.enterprise-severity.high {
+  color: #fb923c;
+
+  background: rgba(249, 115, 22, 0.12);
+
+  border: 1px solid rgba(249, 115, 22, 0.3);
+}
+
+.enterprise-severity.medium {
+  color: #fbbf24;
+
+  background: rgba(245, 158, 11, 0.12);
+
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.enterprise-severity.low {
+  color: #34d399;
+
+  background: rgba(16, 185, 129, 0.12);
+
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.enterprise-threat-time {
+  display: flex;
+
+  align-items: center;
+
+  gap: 5px;
+
+  color: #687391;
+
+  font-size: 10px;
+}
+
+.enterprise-threat-meta > svg {
+  color: #596581;
+}
+
+
+/* =========================================================
+   ENTERPRISE SECURITY INSIGHTS
+========================================================= */
+
+.enterprise-insights {
+  display: flex;
+
+  flex-direction: column;
+}
+
+.enterprise-insight {
+  display: flex;
+
+  gap: 12px;
+
+  padding: 15px 0;
+
+  border-bottom: 1px solid #1c2540;
+}
+
+.enterprise-insight:last-child {
+  border-bottom: none;
+}
+
+.insight-icon {
+  width: 38px;
+  height: 38px;
+
+  flex-shrink: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 8px;
+}
+
+.insight-red {
+  background: rgba(239, 68, 68, 0.11);
+
+  color: #fb7185;
+
+  border: 1px solid rgba(239, 68, 68, 0.25);
+}
+
+.insight-green {
+  background: rgba(34, 197, 94, 0.11);
+
+  color: #4ade80;
+
+  border: 1px solid rgba(34, 197, 94, 0.25);
+}
+
+.insight-purple {
+  background: rgba(139, 92, 246, 0.12);
+
+  color: #a78bfa;
+
+  border: 1px solid rgba(139, 92, 246, 0.25);
+}
+
+.enterprise-insight strong {
+  display: block;
+
+  color: #e7eaf6;
+
+  font-size: 13px;
+
+  margin-bottom: 5px;
+}
+
+.enterprise-insight p {
+  color: #687391;
+
+  font-size: 11px;
+
+  line-height: 1.5;
+}
+
+
+/* =========================================================
+   ENTERPRISE PROTECTION STATUS
+========================================================= */
+
+.enterprise-monitoring-card {
+  margin-bottom: 25px;
+}
+
+.protection-grid {
+  display: grid;
+
+  grid-template-columns: repeat(4, 1fr);
+
+  gap: 15px;
+}
+
+.protection-item {
+  display: flex;
+
+  align-items: center;
+
+  gap: 11px;
+
+  padding: 15px;
+
+  background: rgba(6, 9, 20, 0.35);
+
+  border: 1px solid #202a47;
+
+  border-radius: 8px;
+
+  transition: all 0.2s ease;
+}
+
+.protection-item:hover {
+  border-color: #34436d;
+
+  background: rgba(59, 130, 246, 0.04);
+}
+
+.protection-dot {
+  width: 9px;
+  height: 9px;
+
+  flex-shrink: 0;
+
+  border-radius: 50%;
+}
+
+.protection-dot.active {
+  background: #22c55e;
+
+  box-shadow:
+    0 0 12px rgba(34, 197, 94, 0.8);
+}
+
+.protection-item strong {
+  display: block;
+
+  color: #dfe4f3;
+
+  font-size: 11px;
+
+  margin-bottom: 4px;
+}
+
+.protection-item p {
+  color: #4ade80;
+
+  font-size: 10px;
+
+  font-weight: 600;
+}
+
+/* =========================================================
    RESPONSIVE
-========================= */
+========================================================= */
 
 @media (max-width: 1100px) {
 
@@ -997,6 +2742,10 @@ tbody tr:hover {
 
   .details-grid {
     grid-template-columns: repeat(2, 1fr);
+  }
+
+  .simulation-layout {
+    grid-template-columns: 230px minmax(0, 1fr);
   }
 
 }
@@ -1018,6 +2767,22 @@ tbody tr:hover {
 
   .analytics-bottom-grid {
     grid-template-columns: 1fr;
+  }
+
+  .simulation-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .attack-list {
+    display: grid;
+
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+
+    gap: 5px;
+  }
+
+  .attack-item {
+    margin-bottom: 0;
   }
 
 }
@@ -1066,6 +2831,18 @@ tbody tr:hover {
     gap: 15px;
   }
 
+  .attack-simulation-page {
+    padding: 20px;
+  }
+
+  .attack-simulation-header {
+    flex-direction: column;
+  }
+
+  .attack-simulation-header h1 {
+    font-size: 28px;
+  }
+
 }
 
 
@@ -1081,6 +2858,22 @@ tbody tr:hover {
 
   .reset-button {
     width: 100%;
+  }
+
+  .attack-list {
+    grid-template-columns: 1fr;
+  }
+
+  .selected-attack-card {
+    padding: 20px;
+  }
+
+  .selected-attack-top {
+    flex-direction: column;
+  }
+
+  .attack-tag {
+    align-self: flex-start;
   }
 
 }

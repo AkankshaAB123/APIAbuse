@@ -2,7 +2,7 @@ function Navbar() {
   return (
     <header className="navbar">
       <div className="navbar-title">
-        AI-Based API Threat Detection
+        AI-Based API Abuse Threat Detection System
       </div>
 
       <div className="navbar-user">
