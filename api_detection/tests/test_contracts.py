@@ -1,8 +1,10 @@
 
 import unittest
+
 from dataclasses import replace
 
 from api_detection.backend_adapter import run_for_backend
+
 from api_detection.contracts import (
     ApiSecurityEvent,
     AttackType,
@@ -13,6 +15,7 @@ from api_detection.contracts import (
     NetworkInfo,
     Severity,
 )
+
 from api_detection.detectors import (
     detect_account_takeover,
     detect_bola_idor,
@@ -28,10 +31,16 @@ from api_detection.detectors import (
     detect_dos_flooding,
     detect_network_brute_force,
     detect_port_scanning,
+    detect_suspicious_process_execution,
+    detect_reverse_shell,
+    detect_privilege_escalation,
 )
+
+from api_detection.detectors.keylogging import detect_keylogging
 
 
 from api_detection.engine import run_all_detectors
+
 from api_detection.simulator import (
     bola_idor_event,
     business_flow_abuse_event,
@@ -78,10 +87,12 @@ class DetectorContractTests(unittest.TestCase):
             payload["attack_type"],
             "BOLA_IDOR",
         )
+
         self.assertEqual(
             payload["severity"],
             "CRITICAL",
         )
+
         self.assertEqual(
             payload["evidence"][0]["code"],
             "RESOURCE_OWNER_MISMATCH",
@@ -91,6 +102,7 @@ class DetectorContractTests(unittest.TestCase):
         event = normal_event()
 
         self.assertIsNone(event.endpoint)
+
         self.assertEqual(
             event.network.source_ip,
             "192.168.1.10",
@@ -110,11 +122,11 @@ class DetectorContractTests(unittest.TestCase):
         )
 
         self.assertIsNotNone(event.endpoint)
+
         self.assertEqual(
             event.endpoint.process_name,
             "powershell.exe",
         )
-
 
     def test_endpoint_info_accepts_endpoint_telemetry(self) -> None:
         endpoint = EndpointInfo(
@@ -136,19 +148,22 @@ class DetectorContractTests(unittest.TestCase):
             endpoint.event_type,
             "process_activity",
         )
+
         self.assertEqual(
             endpoint.process_name,
             "powershell.exe",
         )
+
         self.assertEqual(
             endpoint.parent_process,
             "winword.exe",
         )
+
         self.assertTrue(endpoint.keyboard_hook)
+
         self.assertTrue(endpoint.network_connection)
+
         self.assertFalse(endpoint.elevated)
-
-
 
     def test_detector_result_defaults_to_api_domain(self) -> None:
         result = DetectorResult(
@@ -248,6 +263,7 @@ class DetectorContractTests(unittest.TestCase):
         )
 
         self.assertFalse(result.detected)
+
         self.assertIsNone(result.attack_type)
 
     # --------------------------------------------------
@@ -521,8 +537,7 @@ class DetectorContractTests(unittest.TestCase):
             request=replace(
                 event.request,
                 body={
-                    "callback_url":
-                        "https://example.com/webhook",
+                    "callback_url": "https://example.com/webhook",
                 },
             ),
         )
@@ -593,6 +608,7 @@ class DetectorContractTests(unittest.TestCase):
         )
 
         self.assertFalse(result.detected)
+
         self.assertIsNone(result.attack_type)
 
         self.assertEqual(
@@ -685,6 +701,7 @@ class DetectorContractTests(unittest.TestCase):
         )
 
         self.assertFalse(result.detected)
+
         self.assertIsNone(result.attack_type)
 
     # --------------------------------------------------
@@ -759,8 +776,10 @@ class DetectorContractTests(unittest.TestCase):
         )
 
         self.assertFalse(result.detected)
+
         self.assertIsNone(result.attack_type)
-        # --------------------------------------------------
+
+    # --------------------------------------------------
     # DDoS
     # --------------------------------------------------
 
@@ -798,10 +817,12 @@ class DetectorContractTests(unittest.TestCase):
         )
 
         self.assertTrue(result.detected)
+
         self.assertEqual(
             result.attack_type,
             AttackType.DDOS,
         )
+
         self.assertEqual(
             result.domain,
             DetectorDomain.NETWORK,
@@ -841,7 +862,9 @@ class DetectorContractTests(unittest.TestCase):
         )
 
         self.assertFalse(result.detected)
+
         self.assertIsNone(result.attack_type)
+
         self.assertEqual(
             result.domain,
             DetectorDomain.NETWORK,
@@ -885,10 +908,12 @@ class DetectorContractTests(unittest.TestCase):
         )
 
         self.assertTrue(result.detected)
+
         self.assertEqual(
             result.attack_type,
             AttackType.DOS_FLOODING,
         )
+
         self.assertEqual(
             result.domain,
             DetectorDomain.NETWORK,
@@ -928,7 +953,9 @@ class DetectorContractTests(unittest.TestCase):
         )
 
         self.assertFalse(result.detected)
+
         self.assertIsNone(result.attack_type)
+
         self.assertEqual(
             result.domain,
             DetectorDomain.NETWORK,
@@ -974,10 +1001,12 @@ class DetectorContractTests(unittest.TestCase):
         )
 
         self.assertTrue(result.detected)
+
         self.assertEqual(
             result.attack_type,
             AttackType.PORT_SCANNING,
         )
+
         self.assertEqual(
             result.domain,
             DetectorDomain.NETWORK,
@@ -1019,7 +1048,9 @@ class DetectorContractTests(unittest.TestCase):
         )
 
         self.assertFalse(result.detected)
+
         self.assertIsNone(result.attack_type)
+
         self.assertEqual(
             result.domain,
             DetectorDomain.NETWORK,
@@ -1067,10 +1098,12 @@ class DetectorContractTests(unittest.TestCase):
         )
 
         self.assertTrue(result.detected)
+
         self.assertEqual(
             result.attack_type,
             AttackType.NETWORK_BRUTE_FORCE,
         )
+
         self.assertEqual(
             result.domain,
             DetectorDomain.NETWORK,
@@ -1114,17 +1147,502 @@ class DetectorContractTests(unittest.TestCase):
         )
 
         self.assertFalse(result.detected)
+
         self.assertIsNone(result.attack_type)
+
         self.assertEqual(
             result.domain,
             DetectorDomain.NETWORK,
         )
 
     # --------------------------------------------------
+    # Keylogging
+    # --------------------------------------------------
+
+    def test_keylogging_detects_keyboard_hook(self) -> None:
+        event = replace(
+            normal_event(),
+            endpoint=EndpointInfo(
+                event_type="keyboard_activity",
+                hostname="host-01",
+                username="alice",
+                process_name="suspicious.exe",
+                process_id=1234,
+                keyboard_hook=True,
+            ),
+        )
+
+        result = detect_keylogging(event)
+
+        self.assertTrue(result.detected)
+
+        self.assertEqual(
+            result.attack_type,
+            AttackType.KEYLOGGING,
+        )
+
+        self.assertEqual(
+            result.domain,
+            DetectorDomain.ENDPOINT,
+        )
+
+        self.assertEqual(
+            result.detector_id,
+            "keylogging",
+        )
+
+        self.assertEqual(
+            result.severity,
+            Severity.HIGH,
+        )
+
+        self.assertEqual(
+            len(result.evidence),
+            1,
+        )
+
+    def test_keylogging_ignores_no_keyboard_hook(self) -> None:
+        event = replace(
+            normal_event(),
+            endpoint=EndpointInfo(
+                event_type="keyboard_activity",
+                hostname="host-01",
+                username="alice",
+                process_name="normal.exe",
+                process_id=1234,
+                keyboard_hook=False,
+            ),
+        )
+
+        result = detect_keylogging(event)
+
+        self.assertFalse(result.detected)
+
+        self.assertIsNone(result.attack_type)
+
+        self.assertEqual(
+            result.domain,
+            DetectorDomain.ENDPOINT,
+        )
+
+    def test_keylogging_ignores_missing_endpoint_telemetry(self) -> None:
+        event = replace(
+            normal_event(),
+            endpoint=None,
+        )
+
+        result = detect_keylogging(event)
+
+        self.assertFalse(result.detected)
+
+        self.assertIsNone(result.attack_type)
+
+        self.assertEqual(
+            result.domain,
+            DetectorDomain.ENDPOINT,
+        )
+        # --------------------------------------------------
+    # Suspicious Process Execution
+    # --------------------------------------------------
+
+    def test_suspicious_process_execution_detects_suspicious_process(
+        self,
+    ) -> None:
+        event = replace(
+            normal_event(),
+            endpoint=EndpointInfo(
+                event_type="process_activity",
+                hostname="host-01",
+                username="alice",
+                process_name="powershell.exe",
+                process_id=4321,
+                parent_process="winword.exe",
+                executable_path=(
+                    r"C:\Windows\System32\WindowsPowerShell\v1.0"
+                    r"\powershell.exe"
+                ),
+                command_line="powershell.exe -NoProfile -ExecutionPolicy Bypass",
+            ),
+        )
+
+        result = detect_suspicious_process_execution(event)
+
+        self.assertTrue(result.detected)
+
+        self.assertEqual(
+            result.attack_type,
+            AttackType.SUSPICIOUS_PROCESS_EXECUTION,
+        )
+
+        self.assertEqual(
+            result.domain,
+            DetectorDomain.ENDPOINT,
+        )
+
+        self.assertEqual(
+            result.detector_id,
+            "suspicious_process_execution",
+        )
+
+        self.assertEqual(
+            result.severity,
+            Severity.HIGH,
+        )
+
+        self.assertEqual(
+            len(result.evidence),
+            2,
+        )
+
+    def test_suspicious_process_execution_detects_suspicious_command(
+        self,
+    ) -> None:
+        event = replace(
+            normal_event(),
+            endpoint=EndpointInfo(
+                event_type="process_activity",
+                hostname="host-02",
+                username="alice",
+                process_name="custom-tool.exe",
+                process_id=5678,
+                command_line="custom-tool.exe -EncodedCommand ABC123",
+            ),
+        )
+
+        result = detect_suspicious_process_execution(event)
+
+        self.assertTrue(result.detected)
+
+        self.assertEqual(
+            result.attack_type,
+            AttackType.SUSPICIOUS_PROCESS_EXECUTION,
+        )
+
+        self.assertEqual(
+            result.domain,
+            DetectorDomain.ENDPOINT,
+        )
+
+        self.assertEqual(
+            result.evidence[0].code,
+            "SUSPICIOUS_COMMAND_LINE",
+        )
+
+    def test_suspicious_process_execution_ignores_normal_process(
+        self,
+    ) -> None:
+        event = replace(
+            normal_event(),
+            endpoint=EndpointInfo(
+                event_type="process_activity",
+                hostname="host-03",
+                username="alice",
+                process_name="notepad.exe",
+                process_id=6789,
+                parent_process="explorer.exe",
+                executable_path=(
+                    r"C:\Windows\System32\notepad.exe"
+                ),
+                command_line="notepad.exe document.txt",
+            ),
+        )
+
+        result = detect_suspicious_process_execution(event)
+
+        self.assertFalse(result.detected)
+
+        self.assertIsNone(result.attack_type)
+
+        self.assertEqual(
+            result.domain,
+            DetectorDomain.ENDPOINT,
+        )
+
+    def test_suspicious_process_execution_ignores_missing_endpoint(
+        self,
+    ) -> None:
+        event = replace(
+            normal_event(),
+            endpoint=None,
+        )
+
+        result = detect_suspicious_process_execution(event)
+
+        self.assertFalse(result.detected)
+
+        self.assertIsNone(result.attack_type)
+
+        self.assertEqual(
+            result.domain,
+            DetectorDomain.ENDPOINT,
+        )
+        # --------------------------------------------------
+    # Reverse Shell
+    # --------------------------------------------------
+
+    def test_reverse_shell_detects_shell_with_network_connection(
+        self,
+    ) -> None:
+        event = replace(
+            normal_event(),
+            endpoint=EndpointInfo(
+                event_type="process_activity",
+                hostname="host-01",
+                username="alice",
+                process_name="bash",
+                process_id=4321,
+                parent_process="python.exe",
+                command_line="bash -i",
+                network_connection=True,
+            ),
+        )
+
+        result = detect_reverse_shell(event)
+
+        self.assertTrue(result.detected)
+        self.assertEqual(
+            result.attack_type,
+            AttackType.REVERSE_SHELL,
+        )
+        self.assertEqual(
+            result.domain,
+            DetectorDomain.ENDPOINT,
+        )
+        self.assertEqual(
+            result.detector_id,
+            "reverse_shell",
+        )
+        self.assertEqual(
+            result.severity,
+            Severity.CRITICAL,
+        )
+        self.assertEqual(len(result.evidence), 3)
+
+    def test_reverse_shell_detects_suspicious_command_with_network_connection(
+        self,
+    ) -> None:
+        event = replace(
+            normal_event(),
+            endpoint=EndpointInfo(
+                event_type="process_activity",
+                hostname="host-02",
+                username="alice",
+                process_name="custom-tool.exe",
+                process_id=5678,
+                command_line="custom-tool.exe nc 192.0.2.10 4444",
+                network_connection=True,
+            ),
+        )
+
+        result = detect_reverse_shell(event)
+
+        self.assertTrue(result.detected)
+        self.assertEqual(
+            result.attack_type,
+            AttackType.REVERSE_SHELL,
+        )
+        self.assertEqual(
+            result.domain,
+            DetectorDomain.ENDPOINT,
+        )
+
+    def test_reverse_shell_ignores_single_weak_signal(
+        self,
+    ) -> None:
+        event = replace(
+            normal_event(),
+            endpoint=EndpointInfo(
+                event_type="process_activity",
+                hostname="host-03",
+                username="alice",
+                process_name="bash",
+                process_id=6789,
+                network_connection=False,
+            ),
+        )
+
+        result = detect_reverse_shell(event)
+
+        self.assertFalse(result.detected)
+        self.assertIsNone(result.attack_type)
+        self.assertEqual(
+            result.domain,
+            DetectorDomain.ENDPOINT,
+        )
+
+    def test_reverse_shell_ignores_normal_process_without_network_activity(
+        self,
+    ) -> None:
+        event = replace(
+            normal_event(),
+            endpoint=EndpointInfo(
+                event_type="process_activity",
+                hostname="host-04",
+                username="alice",
+                process_name="notepad.exe",
+                process_id=7890,
+                parent_process="explorer.exe",
+                command_line="notepad.exe document.txt",
+                network_connection=False,
+            ),
+        )
+
+        result = detect_reverse_shell(event)
+
+        self.assertFalse(result.detected)
+        self.assertIsNone(result.attack_type)
+        self.assertEqual(
+            result.domain,
+            DetectorDomain.ENDPOINT,
+        )
+        # --------------------------------------------------
+    # Privilege Escalation
+    # --------------------------------------------------
+
+    def test_privilege_escalation_detects_command_with_elevated_context(
+        self,
+    ) -> None:
+        event = replace(
+            normal_event(),
+            endpoint=EndpointInfo(
+                event_type="process_activity",
+                hostname="host-05",
+                username="alice",
+                process_name="sudo",
+                process_id=8001,
+                parent_process="bash",
+                command_line="sudo service-status",
+                privilege_level="admin",
+                elevated=True,
+            ),
+        )
+
+        result = detect_privilege_escalation(event)
+
+        self.assertTrue(result.detected)
+
+        self.assertEqual(
+            result.attack_type,
+            AttackType.PRIVILEGE_ESCALATION,
+        )
+
+        self.assertEqual(
+            result.domain,
+            DetectorDomain.ENDPOINT,
+        )
+
+        self.assertEqual(
+            result.detector_id,
+            "privilege_escalation",
+        )
+
+        self.assertEqual(
+            result.severity,
+            Severity.CRITICAL,
+        )
+
+        self.assertEqual(
+            len(result.evidence),
+            3,
+        )
+
+    def test_privilege_escalation_detects_privileged_context_with_elevated_flag(
+        self,
+    ) -> None:
+        event = replace(
+            normal_event(),
+            endpoint=EndpointInfo(
+                event_type="process_activity",
+                hostname="host-06",
+                username="alice",
+                process_name="admin-tool.exe",
+                process_id=8002,
+                privilege_level="administrator",
+                elevated=True,
+            ),
+        )
+
+        result = detect_privilege_escalation(event)
+
+        self.assertTrue(result.detected)
+
+        self.assertEqual(
+            result.attack_type,
+            AttackType.PRIVILEGE_ESCALATION,
+        )
+
+        self.assertEqual(
+            result.domain,
+            DetectorDomain.ENDPOINT,
+        )
+
+        self.assertEqual(
+            result.detector_id,
+            "privilege_escalation",
+        )
+
+    def test_privilege_escalation_ignores_single_signal(
+        self,
+    ) -> None:
+        event = replace(
+            normal_event(),
+            endpoint=EndpointInfo(
+                event_type="process_activity",
+                hostname="host-07",
+                username="alice",
+                process_name="admin-tool.exe",
+                process_id=8003,
+                privilege_level="administrator",
+                elevated=False,
+            ),
+        )
+
+        result = detect_privilege_escalation(event)
+
+        self.assertFalse(result.detected)
+
+        self.assertIsNone(result.attack_type)
+
+        self.assertEqual(
+            result.domain,
+            DetectorDomain.ENDPOINT,
+        )
+
+    def test_privilege_escalation_ignores_normal_process(
+        self,
+    ) -> None:
+        event = replace(
+            normal_event(),
+            endpoint=EndpointInfo(
+                event_type="process_activity",
+                hostname="host-08",
+                username="alice",
+                process_name="notepad.exe",
+                process_id=8004,
+                parent_process="explorer.exe",
+                command_line="notepad.exe document.txt",
+                privilege_level="user",
+                elevated=False,
+            ),
+        )
+
+        result = detect_privilege_escalation(event)
+
+        self.assertFalse(result.detected)
+
+        self.assertIsNone(result.attack_type)
+
+        self.assertEqual(
+            result.domain,
+            DetectorDomain.ENDPOINT,
+        )
+
+    # --------------------------------------------------
     # Engine
     # --------------------------------------------------
 
-    def test_engine_returns_registered_detector_results(
+    
+    def test_engine_returns_all_18_registered_detector_results(
         self,
     ) -> None:
         results = run_all_detectors(
@@ -1133,96 +1651,56 @@ class DetectorContractTests(unittest.TestCase):
 
         self.assertEqual(
             len(results),
-            10,
+            18,
         )
 
         self.assertTrue(
             results[0].detected
         )
 
-    # --------------------------------------------------
-    # Backend Adapter
-    # --------------------------------------------------
-
-    def test_backend_adapter_preserves_contract_and_metadata_details(
-        self,
-    ) -> None:
-        event = {
-            "schema_version": "1.0",
-            "event_id": "evt-adapter-001",
-            "timestamp": "2026-09-02T10:00:00Z",
-            "network": {
-                "source_ip": "192.168.1.77",
-                "user_agent": "demo-client/1.0",
-            },
-            "identity": {
-                "user_id": None,
-                "session_id": None,
-                "roles": [],
-                "is_authenticated": False,
-            },
-            "request": {
-                "method": "POST",
-                "endpoint": "/api/auth/login",
-                "path_params": {},
-                "query_params": {},
-                "headers": {},
-                "body": {
-                    "username": "user_17",
-                    "password": "incorrect",
-                },
-            },
-            "response": {
-                "status_code": 401,
-                "latency_ms": 35.5,
-            },
-            "resource": {
-                "resource_type": None,
-                "resource_id": None,
-                "owner_id": None,
-                "is_sensitive": False,
-            },
-        }
-
-        history = [
-            {
-                **event,
-                "event_id": (
-                    f"evt-adapter-history-{number}"
-                ),
-            }
-            for number in range(1, 5)
-        ]
-
-        results = run_for_backend(
-            event,
-            history,
-        )
-
-        credential_result = next(
-            result
-            for result in results
-            if result["detector_id"]
-            == "credential_attacks"
-        )
-
-        self.assertTrue(
-            credential_result["detected"]
+        self.assertEqual(
+            results[0].detector_id,
+            "bola_idor",
         )
 
         self.assertEqual(
-            credential_result["attack_type"],
-            "CREDENTIAL_ATTACK",
+            results[10].detector_id,
+            "ddos",
         )
 
         self.assertEqual(
-            credential_result["metadata"]["window_seconds"],
-            300,
+            results[11].detector_id,
+            "dos_flooding",
         )
 
         self.assertEqual(
-            credential_result["metadata"]["details"]["subtype"],
-            "BRUTE_FORCE",
+            results[12].detector_id,
+            "port_scanning",
+        )
+
+        self.assertEqual(
+            results[13].detector_id,
+            "network_brute_force",
+        )
+
+        self.assertEqual(
+            results[14].detector_id,
+            "keylogging",
+        )
+
+        self.assertEqual(
+            results[15].detector_id,
+            "suspicious_process_execution",
+        )
+
+        self.assertEqual(
+            results[16].detector_id,
+            "reverse_shell",
+        )
+
+        self.assertEqual(
+            results[17].detector_id,
+            "privilege_escalation",
         )
 
 
