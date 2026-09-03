@@ -1,11 +1,16 @@
+
 import unittest
 from dataclasses import replace
 
 from api_detection.backend_adapter import run_for_backend
 from api_detection.contracts import (
+    ApiSecurityEvent,
     AttackType,
+    DetectorDomain,
     DetectorResult,
+    EndpointInfo,
     Evidence,
+    NetworkInfo,
     Severity,
 )
 from api_detection.detectors import (
@@ -16,9 +21,16 @@ from api_detection.detectors import (
     detect_credential_attacks,
     detect_endpoint_enumeration,
     detect_resource_exhaustion,
+    detect_security_misconfiguration,
     detect_sql_injection,
     detect_ssrf,
+    detect_ddos,
+    detect_dos_flooding,
+    detect_network_brute_force,
+    detect_port_scanning,
 )
+
+
 from api_detection.engine import run_all_detectors
 from api_detection.simulator import (
     bola_idor_event,
@@ -73,6 +85,133 @@ class DetectorContractTests(unittest.TestCase):
         self.assertEqual(
             payload["evidence"][0]["code"],
             "RESOURCE_OWNER_MISMATCH",
+        )
+
+    def test_existing_api_event_remains_compatible(self) -> None:
+        event = normal_event()
+
+        self.assertIsNone(event.endpoint)
+        self.assertEqual(
+            event.network.source_ip,
+            "192.168.1.10",
+        )
+
+    def test_api_event_accepts_optional_endpoint_telemetry(self) -> None:
+        base_event = normal_event()
+
+        endpoint = EndpointInfo(
+            event_type="process_activity",
+            process_name="powershell.exe",
+        )
+
+        event = replace(
+            base_event,
+            endpoint=endpoint,
+        )
+
+        self.assertIsNotNone(event.endpoint)
+        self.assertEqual(
+            event.endpoint.process_name,
+            "powershell.exe",
+        )
+
+
+    def test_endpoint_info_accepts_endpoint_telemetry(self) -> None:
+        endpoint = EndpointInfo(
+            event_type="process_activity",
+            hostname="demo-host",
+            username="demo-user",
+            process_name="powershell.exe",
+            process_id=1234,
+            parent_process="winword.exe",
+            executable_path=r"C:\Users\demo\AppData\Local\Temp\demo.exe",
+            command_line="powershell.exe -Command demo",
+            privilege_level="user",
+            keyboard_hook=True,
+            network_connection=True,
+            elevated=False,
+        )
+
+        self.assertEqual(
+            endpoint.event_type,
+            "process_activity",
+        )
+        self.assertEqual(
+            endpoint.process_name,
+            "powershell.exe",
+        )
+        self.assertEqual(
+            endpoint.parent_process,
+            "winword.exe",
+        )
+        self.assertTrue(endpoint.keyboard_hook)
+        self.assertTrue(endpoint.network_connection)
+        self.assertFalse(endpoint.elevated)
+
+
+
+    def test_detector_result_defaults_to_api_domain(self) -> None:
+        result = DetectorResult(
+            event_id="evt-api-domain-001",
+            detector_id="bola_idor",
+            detected=True,
+            attack_type=AttackType.BOLA_IDOR,
+            confidence=0.95,
+            severity=Severity.HIGH,
+        )
+
+        self.assertEqual(
+            result.domain,
+            DetectorDomain.API,
+        )
+
+        payload = result.to_dict()
+
+        self.assertEqual(
+            payload["domain"],
+            "API",
+        )
+
+    def test_detector_result_supports_network_domain(self) -> None:
+        result = DetectorResult(
+            event_id="evt-network-domain-001",
+            detector_id="port_scanning",
+            detected=True,
+            attack_type=AttackType.PORT_SCANNING,
+            confidence=0.95,
+            severity=Severity.HIGH,
+            domain=DetectorDomain.NETWORK,
+        )
+
+        self.assertEqual(
+            result.domain,
+            DetectorDomain.NETWORK,
+        )
+
+        self.assertEqual(
+            result.to_dict()["domain"],
+            "NETWORK",
+        )
+
+    def test_detector_result_supports_endpoint_domain(self) -> None:
+        result = DetectorResult(
+            event_id="evt-endpoint-domain-001",
+            detector_id="keylogging",
+            detected=True,
+            attack_type=AttackType.KEYLOGGING,
+            confidence=0.94,
+            severity=Severity.HIGH,
+            domain=DetectorDomain.ENDPOINT,
+        )
+
+        self.assertEqual(
+            result.domain,
+            DetectorDomain.ENDPOINT,
+        )
+
+        self.assertEqual(
+            result.to_dict()["domain"],
+            "ENDPOINT",
         )
 
     # --------------------------------------------------
@@ -462,6 +601,53 @@ class DetectorContractTests(unittest.TestCase):
         )
 
     # --------------------------------------------------
+    # Security Misconfiguration
+    # --------------------------------------------------
+
+    def test_security_misconfiguration_detects_exposed_debug_endpoint(
+        self,
+    ) -> None:
+        event = normal_event()
+
+        misconfigured_event = replace(
+            event,
+            event_id="evt-misconfiguration-001",
+            request=replace(
+                event.request,
+                endpoint="/api/debug/config",
+            ),
+        )
+
+        result = detect_security_misconfiguration(
+            misconfigured_event
+        )
+
+        self.assertTrue(result.detected)
+
+        self.assertEqual(
+            result.attack_type,
+            AttackType.SECURITY_MISCONFIGURATION,
+        )
+
+        self.assertEqual(
+            result.evidence[0].code,
+            "EXPOSED_CONFIGURATION_ENDPOINT",
+        )
+
+    def test_security_misconfiguration_ignores_normal_endpoint(
+        self,
+    ) -> None:
+        result = detect_security_misconfiguration(
+            normal_event()
+        )
+
+        self.assertFalse(result.detected)
+
+        self.assertIsNone(
+            result.attack_type
+        )
+
+    # --------------------------------------------------
     # Business Flow Abuse
     # --------------------------------------------------
 
@@ -574,6 +760,365 @@ class DetectorContractTests(unittest.TestCase):
 
         self.assertFalse(result.detected)
         self.assertIsNone(result.attack_type)
+        # --------------------------------------------------
+    # DDoS
+    # --------------------------------------------------
+
+    def test_ddos_detects_distributed_request_flood(
+        self,
+    ) -> None:
+        base_event = normal_event()
+
+        history = [
+            replace(
+                base_event,
+                event_id=f"evt-ddos-{number}",
+                network=replace(
+                    base_event.network,
+                    source_ip=f"192.0.2.{number}",
+                    destination_ip="198.51.100.10",
+                ),
+            )
+            for number in range(1, 100)
+        ]
+
+        current_event = replace(
+            base_event,
+            event_id="evt-ddos-100",
+            network=replace(
+                base_event.network,
+                source_ip="192.0.2.100",
+                destination_ip="198.51.100.10",
+            ),
+        )
+
+        result = detect_ddos(
+            current_event,
+            history,
+        )
+
+        self.assertTrue(result.detected)
+        self.assertEqual(
+            result.attack_type,
+            AttackType.DDOS,
+        )
+        self.assertEqual(
+            result.domain,
+            DetectorDomain.NETWORK,
+        )
+
+    def test_ddos_ignores_low_volume_traffic(
+        self,
+    ) -> None:
+        base_event = normal_event()
+
+        history = [
+            replace(
+                base_event,
+                event_id=f"evt-ddos-normal-{number}",
+                network=replace(
+                    base_event.network,
+                    source_ip=f"192.0.2.{number}",
+                    destination_ip="198.51.100.10",
+                ),
+            )
+            for number in range(1, 5)
+        ]
+
+        current_event = replace(
+            base_event,
+            event_id="evt-ddos-normal-5",
+            network=replace(
+                base_event.network,
+                source_ip="192.0.2.5",
+                destination_ip="198.51.100.10",
+            ),
+        )
+
+        result = detect_ddos(
+            current_event,
+            history,
+        )
+
+        self.assertFalse(result.detected)
+        self.assertIsNone(result.attack_type)
+        self.assertEqual(
+            result.domain,
+            DetectorDomain.NETWORK,
+        )
+
+    # --------------------------------------------------
+    # DoS / Flooding
+    # --------------------------------------------------
+
+    def test_dos_flooding_detects_high_request_volume(
+        self,
+    ) -> None:
+        base_event = normal_event()
+
+        history = [
+            replace(
+                base_event,
+                event_id=f"evt-dos-{number}",
+                network=replace(
+                    base_event.network,
+                    source_ip="192.0.2.50",
+                    destination_ip="198.51.100.20",
+                ),
+            )
+            for number in range(1, 100)
+        ]
+
+        current_event = replace(
+            base_event,
+            event_id="evt-dos-100",
+            network=replace(
+                base_event.network,
+                source_ip="192.0.2.50",
+                destination_ip="198.51.100.20",
+            ),
+        )
+
+        result = detect_dos_flooding(
+            current_event,
+            history,
+        )
+
+        self.assertTrue(result.detected)
+        self.assertEqual(
+            result.attack_type,
+            AttackType.DOS_FLOODING,
+        )
+        self.assertEqual(
+            result.domain,
+            DetectorDomain.NETWORK,
+        )
+
+    def test_dos_flooding_ignores_low_request_volume(
+        self,
+    ) -> None:
+        base_event = normal_event()
+
+        history = [
+            replace(
+                base_event,
+                event_id=f"evt-dos-normal-{number}",
+                network=replace(
+                    base_event.network,
+                    source_ip="192.0.2.50",
+                    destination_ip="198.51.100.20",
+                ),
+            )
+            for number in range(1, 5)
+        ]
+
+        current_event = replace(
+            base_event,
+            event_id="evt-dos-normal-5",
+            network=replace(
+                base_event.network,
+                source_ip="192.0.2.50",
+                destination_ip="198.51.100.20",
+            ),
+        )
+
+        result = detect_dos_flooding(
+            current_event,
+            history,
+        )
+
+        self.assertFalse(result.detected)
+        self.assertIsNone(result.attack_type)
+        self.assertEqual(
+            result.domain,
+            DetectorDomain.NETWORK,
+        )
+
+    # --------------------------------------------------
+    # Port Scanning
+    # --------------------------------------------------
+
+    def test_port_scanning_detects_many_destination_ports(
+        self,
+    ) -> None:
+        base_event = normal_event()
+
+        history = [
+            replace(
+                base_event,
+                event_id=f"evt-port-scan-{port}",
+                network=replace(
+                    base_event.network,
+                    source_ip="192.0.2.60",
+                    destination_ip="198.51.100.30",
+                    destination_port=port,
+                ),
+            )
+            for port in range(1, 100)
+        ]
+
+        current_event = replace(
+            base_event,
+            event_id="evt-port-scan-100",
+            network=replace(
+                base_event.network,
+                source_ip="192.0.2.60",
+                destination_ip="198.51.100.30",
+                destination_port=100,
+            ),
+        )
+
+        result = detect_port_scanning(
+            current_event,
+            history,
+        )
+
+        self.assertTrue(result.detected)
+        self.assertEqual(
+            result.attack_type,
+            AttackType.PORT_SCANNING,
+        )
+        self.assertEqual(
+            result.domain,
+            DetectorDomain.NETWORK,
+        )
+
+    def test_port_scanning_ignores_few_destination_ports(
+        self,
+    ) -> None:
+        base_event = normal_event()
+
+        history = [
+            replace(
+                base_event,
+                event_id=f"evt-port-normal-{port}",
+                network=replace(
+                    base_event.network,
+                    source_ip="192.0.2.60",
+                    destination_ip="198.51.100.30",
+                    destination_port=port,
+                ),
+            )
+            for port in range(1, 4)
+        ]
+
+        current_event = replace(
+            base_event,
+            event_id="evt-port-normal-4",
+            network=replace(
+                base_event.network,
+                source_ip="192.0.2.60",
+                destination_ip="198.51.100.30",
+                destination_port=4,
+            ),
+        )
+
+        result = detect_port_scanning(
+            current_event,
+            history,
+        )
+
+        self.assertFalse(result.detected)
+        self.assertIsNone(result.attack_type)
+        self.assertEqual(
+            result.domain,
+            DetectorDomain.NETWORK,
+        )
+
+    # --------------------------------------------------
+    # Network Brute Force
+    # --------------------------------------------------
+
+    def test_network_brute_force_detects_repeated_failed_connections(
+        self,
+    ) -> None:
+        base_event = normal_event()
+
+        history = [
+            replace(
+                base_event,
+                event_id=f"evt-network-brute-{number}",
+                network=replace(
+                    base_event.network,
+                    source_ip="192.0.2.70",
+                    destination_ip="198.51.100.40",
+                    destination_port=22,
+                    connection_status="failed",
+                ),
+            )
+            for number in range(1, 10)
+        ]
+
+        current_event = replace(
+            base_event,
+            event_id="evt-network-brute-10",
+            network=replace(
+                base_event.network,
+                source_ip="192.0.2.70",
+                destination_ip="198.51.100.40",
+                destination_port=22,
+                connection_status="failed",
+            ),
+        )
+
+        result = detect_network_brute_force(
+            current_event,
+            history,
+        )
+
+        self.assertTrue(result.detected)
+        self.assertEqual(
+            result.attack_type,
+            AttackType.NETWORK_BRUTE_FORCE,
+        )
+        self.assertEqual(
+            result.domain,
+            DetectorDomain.NETWORK,
+        )
+
+    def test_network_brute_force_ignores_few_failed_connections(
+        self,
+    ) -> None:
+        base_event = normal_event()
+
+        history = [
+            replace(
+                base_event,
+                event_id=f"evt-network-brute-normal-{number}",
+                network=replace(
+                    base_event.network,
+                    source_ip="192.0.2.70",
+                    destination_ip="198.51.100.40",
+                    destination_port=22,
+                    connection_status="failed",
+                ),
+            )
+            for number in range(1, 3)
+        ]
+
+        current_event = replace(
+            base_event,
+            event_id="evt-network-brute-normal-3",
+            network=replace(
+                base_event.network,
+                source_ip="192.0.2.70",
+                destination_ip="198.51.100.40",
+                destination_port=22,
+                connection_status="failed",
+            ),
+        )
+
+        result = detect_network_brute_force(
+            current_event,
+            history,
+        )
+
+        self.assertFalse(result.detected)
+        self.assertIsNone(result.attack_type)
+        self.assertEqual(
+            result.domain,
+            DetectorDomain.NETWORK,
+        )
 
     # --------------------------------------------------
     # Engine
@@ -683,3 +1228,4 @@ class DetectorContractTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

@@ -14,6 +14,10 @@ from .security_misconfiguration import (
 )
 from .sql_injection import detect_sql_injection
 from .ssrf import detect_ssrf
+from .ddos import detect_ddos
+from .dos_flooding import detect_dos_flooding
+from .network_brute_force import detect_network_brute_force
+from .port_scanning import detect_port_scanning
 
 
 __all__ = [
@@ -27,4 +31,8 @@ __all__ = [
     "detect_security_misconfiguration",
     "detect_sql_injection",
     "detect_ssrf",
+    "detect_ddos",
+    "detect_dos_flooding",
+    "detect_network_brute_force",
+    "detect_port_scanning",
 ]
