@@ -66,6 +66,8 @@ def test_sql_injection_triggers_block(clean_test_events):
     )
 
     result = processor.process(event)
+    
+    assert result.source_ip == "192.168.1.100"
 
     sql_detector = next(
         detector
@@ -119,7 +121,7 @@ def test_invalid_event_is_rejected():
 
     assert response.status_code == 422
 
-    
+
 
 def test_processing_result_is_persisted(clean_test_events):
     processor = EventProcessor()

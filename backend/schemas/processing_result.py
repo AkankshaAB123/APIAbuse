@@ -7,6 +7,7 @@ from backend.schemas.risk_assessment import RiskAssessment
 
 class ProcessingResult(BaseModel):
     event_id: str
+    source_ip: str | None = None
     status: str
     message: str
     detector_results: list[DetectorResult] = Field(default_factory=list)

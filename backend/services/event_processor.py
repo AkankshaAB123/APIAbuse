@@ -46,6 +46,7 @@ class EventProcessor:
 
         processing_result = ProcessingResult(
             event_id=event.event_id,
+            source_ip=event.network.source_ip,
             status="processed",
             message="Event processed successfully",
             detector_results=detector_results,
@@ -53,7 +54,6 @@ class EventProcessor:
             risk_assessment=risk_assessment,
             mitigation_action=mitigation_action,
         )
-
         self.repository.update_processing_result(
             event.event_id,
             processing_result,
