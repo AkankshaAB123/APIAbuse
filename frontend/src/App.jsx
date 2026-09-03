@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import {
   BrowserRouter,
@@ -43,26 +43,356 @@ import ThreatTable from "./components/ThreatTable";
 import ThreatDetails from "./pages/ThreatDetails";
 import AttackSimulation from "./pages/AttackSimulation";
 import EnterpriseDashboard from "./pages/EnterpriseDashboard";
+
 import {
-  dashboardStats,
-  threats,
-  attackStatistics,
-  riskDistribution
-} from "./data/mockData";
+  getThreats,
+  getStatistics
+} from "./services/api";
 
 
-/* =========================
+/* =========================================================
+   HELPER
+========================================================= */
+
+function buildAttackStatistics(threats) {
+
+  const counts = {};
+
+  threats.forEach((threat) => {
+
+    const types =
+      Array.isArray(threat.attackTypes) &&
+      threat.attackTypes.length > 0
+        ? threat.attackTypes
+        : threat.attackType
+          ? [threat.attackType]
+          : [];
+
+    types.forEach((type) => {
+
+      if (!type) {
+        return;
+      }
+
+      counts[type] =
+        (counts[type] || 0) + 1;
+
+    });
+
+  });
+
+  return Object.entries(counts)
+    .map(([name, count]) => ({
+      name,
+      count
+    }))
+    .sort(
+      (a, b) =>
+        b.count - a.count
+    );
+}
+
+
+/* =========================================================
    DASHBOARD
-========================= */
+========================================================= */
 
 function Dashboard() {
 
+  const [
+    statistics,
+    setStatistics
+  ] = useState(null);
+
+  const [
+    threats,
+    setThreats
+  ] = useState([]);
+
+  const [
+    loading,
+    setLoading
+  ] = useState(true);
+
+  const [
+    error,
+    setError
+  ] = useState("");
+
+
+  /* =======================================================
+     LOAD REAL DASHBOARD DATA
+  ======================================================= */
+
+  const loadDashboard = async () => {
+
+    try {
+
+      setLoading(true);
+
+      setError("");
+
+      const [
+        stats,
+        threatData
+      ] = await Promise.all([
+
+        getStatistics(),
+
+        getThreats()
+
+      ]);
+
+      setStatistics(
+        stats
+      );
+
+      setThreats(
+        Array.isArray(threatData)
+          ? threatData
+          : []
+      );
+
+    }
+
+    catch (err) {
+
+      console.error(
+        "Failed to load dashboard:",
+        err
+      );
+
+      setError(
+        err.message ||
+        "Failed to load dashboard data."
+      );
+
+    }
+
+    finally {
+
+      setLoading(false);
+
+    }
+
+  };
+
+
+  useEffect(() => {
+
+    loadDashboard();
+
+  }, []);
+
+
+  /* =======================================================
+     REAL STATISTICS
+  ======================================================= */
+
+  const totalRequests =
+    Number(
+      statistics?.totalEvents ??
+      0
+    );
+
+  const threatsDetected =
+    Number(
+      statistics?.totalThreats ??
+      0
+    );
+
+  const criticalThreats =
+    Number(
+      statistics?.criticalThreats ??
+      0
+    );
+
+  const blockedThreats =
+    Number(
+      statistics?.blockedThreats ??
+      0
+    );
+
+
+  /* =======================================================
+     ATTACK DISTRIBUTION
+  ======================================================= */
+
+  const attackStatistics =
+    buildAttackStatistics(
+      threats
+    );
+
+
+  /* =======================================================
+     RISK DISTRIBUTION
+  ======================================================= */
+
+  const riskDistribution = [
+
+    {
+      name: "LOW",
+      count: Number(
+        statistics?.lowThreats ?? 0
+      )
+    },
+
+    {
+      name: "MEDIUM",
+      count: Number(
+        statistics?.mediumThreats ?? 0
+      )
+    },
+
+    {
+      name: "HIGH",
+      count: Number(
+        statistics?.highThreats ?? 0
+      )
+    },
+
+    {
+      name: "CRITICAL",
+      count: Number(
+        statistics?.criticalThreats ?? 0
+      )
+    }
+
+  ];
+
+
+  /* =======================================================
+     REAL TRAFFIC TREND
+  ======================================================= */
+
+  const trafficTrend =
+    Array.isArray(
+      statistics?.trafficTrend
+    )
+      ? statistics.trafficTrend
+      : [];
+
+
+  /* =======================================================
+     LOADING
+  ======================================================= */
+
+  if (loading) {
+
+    return (
+
+      <main className="dashboard-content">
+
+        <div className="dashboard-heading">
+
+          <h1>
+            Security Dashboard
+          </h1>
+
+          <p>
+            Monitor API and network threats in real time.
+          </p>
+
+        </div>
+
+        <div
+          className="placeholder-text"
+          style={{
+            padding: "60px",
+            textAlign: "center"
+          }}
+        >
+
+          Loading security data
+          from MongoDB...
+
+        </div>
+
+      </main>
+
+    );
+
+  }
+
+
+  /* =======================================================
+     ERROR
+  ======================================================= */
+
+  if (error) {
+
+    return (
+
+      <main className="dashboard-content">
+
+        <div className="dashboard-heading">
+
+          <h1>
+            Security Dashboard
+          </h1>
+
+          <p>
+            Monitor API and network threats in real time.
+          </p>
+
+        </div>
+
+        <div
+          className="placeholder-text"
+          style={{
+            padding: "60px",
+            textAlign: "center"
+          }}
+        >
+
+          <strong>
+            Unable to load security data
+          </strong>
+
+          <br />
+
+          <span>
+            {error}
+          </span>
+
+          <br />
+          <br />
+
+          <button
+            className="view-threat-button"
+            onClick={
+              loadDashboard
+            }
+          >
+            RETRY
+          </button>
+
+        </div>
+
+      </main>
+
+    );
+
+  }
+
+
+  /* =======================================================
+     DASHBOARD UI
+  ======================================================= */
+
   return (
+
     <main className="dashboard-content">
+
+      {/* =================================================
+          HEADER
+      ================================================= */}
 
       <div className="dashboard-heading">
 
-        <h1>Security Dashboard</h1>
+        <h1>
+          Security Dashboard
+        </h1>
 
         <p>
           Monitor API and network threats in real time.
@@ -71,117 +401,489 @@ function Dashboard() {
       </div>
 
 
-      {/* Statistics */}
+      {/* =================================================
+          REAL STATISTICS
+      ================================================= */}
 
       <div className="stats-grid">
 
         <StatCard
+
           title="Total Requests"
-          value={dashboardStats.totalRequests}
-          description="Requests monitored"
-          icon={<Activity size={24} />}
+
+          value={
+            totalRequests
+          }
+
+          description="Events monitored"
+
+          icon={
+            <Activity size={24} />
+          }
+
           type="requests"
+
         />
 
+
         <StatCard
+
           title="Threats Detected"
-          value={dashboardStats.threatsDetected}
+
+          value={
+            threatsDetected
+          }
+
           description="Potential threats"
-          icon={<ShieldAlert size={24} />}
+
+          icon={
+            <ShieldAlert size={24} />
+          }
+
           type="threats"
+
         />
 
+
         <StatCard
+
           title="Critical Threats"
-          value={dashboardStats.criticalThreats}
+
+          value={
+            criticalThreats
+          }
+
           description="Require attention"
-          icon={<AlertTriangle size={24} />}
+
+          icon={
+            <AlertTriangle size={24} />
+          }
+
           type="critical"
+
         />
 
+
         <StatCard
+
           title="Blocked Threats"
-          value={dashboardStats.blockedThreats}
+
+          value={
+            blockedThreats
+          }
+
           description="Threats blocked"
-          icon={<ShieldCheck size={24} />}
+
+          icon={
+            <ShieldCheck size={24} />
+          }
+
           type="blocked"
+
         />
 
       </div>
 
 
-      {/* Attack Statistics */}
+      {/* =================================================
+          REAL ATTACK STATISTICS
+      ================================================= */}
 
       <AttackChart
-        data={attackStatistics}
+        data={
+          attackStatistics
+        }
       />
 
 
-      {/* Risk Distribution */}
+      {/* =================================================
+          REAL RISK DISTRIBUTION
+      ================================================= */}
 
       <RiskChart
-        data={riskDistribution}
+        data={
+          riskDistribution
+        }
       />
 
+
+      {/* =================================================
+          REAL TRAFFIC TREND
+      ================================================= */}
+
+      <div
+        className="analytics-chart-card"
+        style={{
+          marginTop: "24px"
+        }}
+      >
+
+        <div className="analytics-chart-header">
+
+          <div>
+
+            <h2>
+              Traffic & Threat Trend
+            </h2>
+
+            <p>
+              Requests and detected threats over time
+            </p>
+
+          </div>
+
+          <TrendingUp size={22} />
+
+        </div>
+
+
+        {
+          trafficTrend.length === 0 ? (
+
+            <div
+              className="placeholder-text"
+              style={{
+                padding: "60px",
+                textAlign: "center"
+              }}
+            >
+
+              No traffic data available yet.
+
+            </div>
+
+          ) : (
+
+            <ResponsiveContainer
+              width="100%"
+              height={320}
+            >
+
+              <LineChart
+                data={trafficTrend}
+              >
+
+                <CartesianGrid
+                  stroke="#252d4a"
+                  strokeDasharray="3 3"
+                  vertical={false}
+                />
+
+
+                <XAxis
+
+                  dataKey="time"
+
+                  tick={{
+                    fill: "#a5acc5",
+                    fontSize: 12
+                  }}
+
+                  axisLine={{
+                    stroke: "#303858"
+                  }}
+
+                  tickLine={false}
+
+                />
+
+
+                <YAxis
+
+                  tick={{
+                    fill: "#a5acc5",
+                    fontSize: 12
+                  }}
+
+                  axisLine={false}
+
+                  tickLine={false}
+
+                />
+
+
+                <Tooltip
+
+                  contentStyle={{
+                    backgroundColor: "#11172a",
+                    border: "1px solid #39446f",
+                    borderRadius: "10px",
+                    color: "#f5f7ff"
+                  }}
+
+                  labelStyle={{
+                    color: "#ffffff"
+                  }}
+
+                  itemStyle={{
+                    color: "#c4b5fd"
+                  }}
+
+                />
+
+
+                <Line
+
+                  type="monotone"
+
+                  dataKey="requests"
+
+                  stroke="#06B6D4"
+
+                  strokeWidth={3}
+
+                  name="Requests"
+
+                  dot={{
+                    r: 4,
+                    fill: "#06B6D4"
+                  }}
+
+                  activeDot={{
+                    r: 6
+                  }}
+
+                />
+
+
+                <Line
+
+                  type="monotone"
+
+                  dataKey="threats"
+
+                  stroke="#EF4444"
+
+                  strokeWidth={3}
+
+                  name="Threats"
+
+                  dot={{
+                    r: 4,
+                    fill: "#EF4444"
+                  }}
+
+                  activeDot={{
+                    r: 6
+                  }}
+
+                />
+
+              </LineChart>
+
+            </ResponsiveContainer>
+
+          )
+        }
+
+      </div>
+
+
+      {/* =================================================
+          DASHBOARD DATA STATUS
+      ================================================= */}
+
+      <div
+        style={{
+          marginTop: "18px",
+          display: "flex",
+          justifyContent: "flex-end"
+        }}
+      >
+
+        <span
+          style={{
+            fontSize: "12px",
+            color: "#7f8db5"
+          }}
+        >
+
+          ● Live security statistics from MongoDB
+
+        </span>
+
+      </div>
+
     </main>
+
   );
 }
 
 
-/* =========================
+/* =========================================================
    THREATS PAGE
-========================= */
+========================================================= */
 
 function ThreatsPage() {
 
-  const [attackType, setAttackType] = useState("ALL");
-  const [severity, setSeverity] = useState("ALL");
-  const [action, setAction] = useState("ALL");
-  const [search, setSearch] = useState("");
+  const [
+    attackType,
+    setAttackType
+  ] = useState("ALL");
+
+  const [
+    severity,
+    setSeverity
+  ] = useState("ALL");
+
+  const [
+    action,
+    setAction
+  ] = useState("ALL");
+
+  const [
+    search,
+    setSearch
+  ] = useState("");
+
+  const [
+    threats,
+    setThreats
+  ] = useState([]);
+
+  const [
+    loading,
+    setLoading
+  ] = useState(true);
+
+  const [
+    error,
+    setError
+  ] = useState("");
 
 
-  const filteredThreats = threats.filter((threat) => {
+  const loadThreats = async () => {
 
-    const matchesAttack =
-      attackType === "ALL" ||
-      threat.attackType === attackType;
+    try {
 
-    const matchesSeverity =
-      severity === "ALL" ||
-      threat.severity === severity;
+      setLoading(true);
 
-    const matchesAction =
-      action === "ALL" ||
-      threat.action === action;
+      setError("");
 
-    const searchText = search.toLowerCase();
+      const data =
+        await getThreats();
 
-    const matchesSearch =
-      search === "" ||
-      threat.id.toLowerCase().includes(searchText) ||
-      threat.sourceIp.toLowerCase().includes(searchText) ||
-      threat.attackType.toLowerCase().includes(searchText);
+      setThreats(
+        Array.isArray(data)
+          ? data
+          : []
+      );
 
-    return (
-      matchesAttack &&
-      matchesSeverity &&
-      matchesAction &&
-      matchesSearch
+    }
+
+    catch (err) {
+
+      console.error(
+        "Failed to load threats:",
+        err
+      );
+
+      setError(
+        err.message ||
+        "Failed to load threats."
+      );
+
+    }
+
+    finally {
+
+      setLoading(false);
+
+    }
+
+  };
+
+
+  useEffect(() => {
+
+    loadThreats();
+
+  }, []);
+
+
+  const filteredThreats =
+    threats.filter(
+      (threat) => {
+
+        const matchesAttack =
+          attackType === "ALL" ||
+          threat.attackType ===
+            attackType;
+
+        const matchesSeverity =
+          severity === "ALL" ||
+          threat.severity ===
+            severity;
+
+        const matchesAction =
+          action === "ALL" ||
+          threat.action ===
+            action;
+
+        const searchText =
+          search.toLowerCase();
+
+        const threatId =
+          String(
+            threat.id || ""
+          ).toLowerCase();
+
+        const sourceIp =
+          String(
+            threat.sourceIp || ""
+          ).toLowerCase();
+
+        const attackName =
+          String(
+            threat.attackType || ""
+          ).toLowerCase();
+
+        const endpoint =
+          String(
+            threat.endpoint || ""
+          ).toLowerCase();
+
+        const matchesSearch =
+          search === "" ||
+          threatId.includes(
+            searchText
+          ) ||
+          sourceIp.includes(
+            searchText
+          ) ||
+          attackName.includes(
+            searchText
+          ) ||
+          endpoint.includes(
+            searchText
+          );
+
+        return (
+          matchesAttack &&
+          matchesSeverity &&
+          matchesAction &&
+          matchesSearch
+        );
+
+      }
     );
-  });
 
 
   const resetFilters = () => {
 
     setAttackType("ALL");
+
     setSeverity("ALL");
+
     setAction("ALL");
+
     setSearch("");
 
   };
 
 
   return (
+
     <main className="page-content">
 
       <div className="page-header">
@@ -192,11 +894,16 @@ function ThreatsPage() {
             to="/"
             className="back-link"
           >
+
             <ArrowLeft size={16} />
+
             Dashboard
+
           </Link>
 
-          <h1>Threats</h1>
+          <h1>
+            Threats
+          </h1>
 
           <p>
             View and investigate all detected security threats.
@@ -205,127 +912,504 @@ function ThreatsPage() {
         </div>
 
         <div className="threat-count">
-          {filteredThreats.length} threats
+
+          {
+            loading
+              ? "Loading..."
+              : `${filteredThreats.length} threats`
+          }
+
         </div>
 
       </div>
 
-
-      {/* Search */}
 
       <div className="search-box">
 
         <Search size={18} />
 
         <input
+
           type="text"
-          placeholder="Search by threat ID, IP address, or attack type..."
+
+          placeholder="Search by threat ID, IP address, attack type, or endpoint..."
+
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+
+          onChange={(e) =>
+            setSearch(
+              e.target.value
+            )
+          }
+
         />
 
       </div>
 
 
-      {/* Filters */}
-
       <ThreatFilters
-        attackType={attackType}
-        severity={severity}
-        action={action}
 
-        onAttackTypeChange={setAttackType}
-        onSeverityChange={setSeverity}
-        onActionChange={setAction}
+        attackType={
+          attackType
+        }
 
-        onReset={resetFilters}
+        severity={
+          severity
+        }
+
+        action={
+          action
+        }
+
+        onAttackTypeChange={
+          setAttackType
+        }
+
+        onSeverityChange={
+          setSeverity
+        }
+
+        onActionChange={
+          setAction
+        }
+
+        onReset={
+          resetFilters
+        }
+
       />
 
 
-      {/* Table */}
+      {
+        loading && (
 
-      <ThreatTable
-        threats={filteredThreats}
-      />
+          <div
+            className="placeholder-text"
+            style={{
+              padding: "40px",
+              textAlign: "center"
+            }}
+          >
+
+            Loading threats from MongoDB...
+
+          </div>
+
+        )
+      }
+
+
+      {
+        !loading &&
+        error && (
+
+          <div
+            className="placeholder-text"
+            style={{
+              padding: "40px",
+              textAlign: "center"
+            }}
+          >
+
+            <strong>
+              Unable to load threats
+            </strong>
+
+            <br />
+
+            <span>
+              {error}
+            </span>
+
+            <br />
+            <br />
+
+            <button
+              className="view-threat-button"
+              onClick={
+                loadThreats
+              }
+            >
+              RETRY
+            </button>
+
+          </div>
+
+        )
+      }
+
+
+      {
+        !loading &&
+        !error &&
+        filteredThreats.length === 0 && (
+
+          <div
+            className="placeholder-text"
+            style={{
+              padding: "40px",
+              textAlign: "center"
+            }}
+          >
+
+            <strong>
+              No threats found
+            </strong>
+
+            <br />
+
+            <span>
+              Run an attack simulation to generate
+              a real threat event.
+            </span>
+
+          </div>
+
+        )
+      }
+
+
+      {
+        !loading &&
+        !error &&
+        filteredThreats.length > 0 && (
+
+          <ThreatTable
+            threats={
+              filteredThreats
+            }
+          />
+
+        )
+      }
 
     </main>
+
   );
 }
 
 
-/* =========================
+/* =========================================================
    ANALYTICS PAGE
-========================= */
+========================================================= */
 
 function AnalyticsPage() {
 
-  const trafficTrend = [
-    {
-      time: "10:00",
-      requests: 1200,
-      threats: 8
-    },
-    {
-      time: "11:00",
-      requests: 1800,
-      threats: 15
-    },
-    {
-      time: "12:00",
-      requests: 2100,
-      threats: 21
-    },
-    {
-      time: "13:00",
-      requests: 1700,
-      threats: 17
-    },
-    {
-      time: "14:00",
-      requests: 2400,
-      threats: 28
-    },
-    {
-      time: "15:00",
-      requests: 2600,
-      threats: 31
-    },
-    {
-      time: "16:00",
-      requests: 2740,
-      threats: 7
+  const [
+    statistics,
+    setStatistics
+  ] = useState(null);
+
+  const [
+    analyticsThreats,
+    setAnalyticsThreats
+  ] = useState([]);
+
+  const [
+    analyticsLoading,
+    setAnalyticsLoading
+  ] = useState(true);
+
+  const [
+    analyticsError,
+    setAnalyticsError
+  ] = useState("");
+
+
+  useEffect(() => {
+
+    const loadAnalytics =
+      async () => {
+
+        try {
+
+          setAnalyticsLoading(
+            true
+          );
+
+          setAnalyticsError("");
+
+          const [
+            stats,
+            threatData
+          ] = await Promise.all([
+
+            getStatistics(),
+
+            getThreats()
+
+          ]);
+
+          setStatistics(
+            stats
+          );
+
+          setAnalyticsThreats(
+            Array.isArray(
+              threatData
+            )
+              ? threatData
+              : []
+          );
+
+        }
+
+        catch (err) {
+
+          console.error(
+            "Failed to load analytics:",
+            err
+          );
+
+          setAnalyticsError(
+            err.message ||
+            "Failed to load analytics data."
+          );
+
+        }
+
+        finally {
+
+          setAnalyticsLoading(
+            false
+          );
+
+        }
+
+      };
+
+    loadAnalytics();
+
+  }, []);
+
+
+  const totalAttackEvents =
+    Number(
+      statistics?.totalThreats ??
+      0
+    );
+
+
+  const criticalEvents =
+    Number(
+      statistics?.criticalThreats ??
+      0
+    );
+
+
+  const highRiskEvents =
+    Number(
+      statistics?.highThreats ??
+      0
+    );
+
+
+  const mediumRiskEvents =
+    Number(
+      statistics?.mediumThreats ??
+      0
+    );
+
+
+  const lowRiskEvents =
+    Number(
+      statistics?.lowThreats ??
+      0
+    );
+
+
+  const totalRiskEvents =
+    criticalEvents +
+    highRiskEvents +
+    mediumRiskEvents +
+    lowRiskEvents;
+
+
+  const attackCounts = {};
+
+
+  analyticsThreats.forEach(
+    (threat) => {
+
+      const types =
+        Array.isArray(
+          threat.attackTypes
+        ) &&
+        threat.attackTypes.length > 0
+
+          ? threat.attackTypes
+
+          : threat.attackType
+            ? [threat.attackType]
+            : [];
+
+
+      types.forEach(
+        (type) => {
+
+          if (!type) {
+            return;
+          }
+
+          attackCounts[type] =
+            (attackCounts[type] || 0) +
+            1;
+
+        }
+      );
+
     }
-  ];
-
-
-  const totalAttacks = attackStatistics.reduce(
-    (total, item) => total + item.count,
-    0
   );
 
 
-  const totalRiskEvents = riskDistribution.reduce(
-    (total, item) => total + item.count,
-    0
-  );
+  const displayAttackStatistics =
+    Object.entries(
+      attackCounts
+    )
+      .map(
+        ([name, count]) => ({
+          name,
+          count
+        })
+      )
+      .sort(
+        (a, b) =>
+          b.count - a.count
+      );
 
 
-  const criticalRisk =
-    riskDistribution.find(
-      (item) => item.name === "CRITICAL"
-    )?.count || 0;
+  /* =======================================================
+     REAL TRAFFIC TREND
+  ======================================================= */
+
+  const trafficTrend =
+    Array.isArray(
+      statistics?.trafficTrend
+    )
+      ? statistics.trafficTrend
+      : [];
 
 
-  const highRisk =
-    riskDistribution.find(
-      (item) => item.name === "HIGH"
-    )?.count || 0;
+  if (analyticsLoading) {
+
+    return (
+
+      <main className="page-content">
+
+        <div className="page-header">
+
+          <div>
+
+            <Link
+              to="/"
+              className="back-link"
+            >
+
+              <ArrowLeft size={16} />
+
+              Dashboard
+
+            </Link>
+
+            <h1>
+              Analytics
+            </h1>
+
+            <p>
+              Analyze attack patterns,
+              traffic and security risks.
+            </p>
+
+          </div>
+
+        </div>
+
+
+        <div
+          className="placeholder-text"
+          style={{
+            padding: "60px",
+            textAlign: "center"
+          }}
+        >
+
+          Loading real analytics
+          from MongoDB...
+
+        </div>
+
+      </main>
+
+    );
+
+  }
+
+
+  if (analyticsError) {
+
+    return (
+
+      <main className="page-content">
+
+        <div className="page-header">
+
+          <div>
+
+            <Link
+              to="/"
+              className="back-link"
+            >
+
+              <ArrowLeft size={16} />
+
+              Dashboard
+
+            </Link>
+
+            <h1>
+              Analytics
+            </h1>
+
+            <p>
+              Analyze attack patterns,
+              traffic and security risks.
+            </p>
+
+          </div>
+
+        </div>
+
+
+        <div
+          className="placeholder-text"
+          style={{
+            padding: "60px",
+            textAlign: "center"
+          }}
+        >
+
+          <strong>
+            Unable to load analytics
+          </strong>
+
+          <br />
+
+          <span>
+            {analyticsError}
+          </span>
+
+        </div>
+
+      </main>
+
+    );
+
+  }
 
 
   return (
-    <main className="page-content">
 
-      {/* Header */}
+    <main className="page-content">
 
       <div className="page-header">
 
@@ -335,14 +1419,20 @@ function AnalyticsPage() {
             to="/"
             className="back-link"
           >
+
             <ArrowLeft size={16} />
+
             Dashboard
+
           </Link>
 
-          <h1>Analytics</h1>
+          <h1>
+            Analytics
+          </h1>
 
           <p>
-            Analyze attack patterns, traffic and security risks.
+            Analyze attack patterns,
+            traffic and security risks.
           </p>
 
         </div>
@@ -350,19 +1440,26 @@ function AnalyticsPage() {
       </div>
 
 
-      {/* Analytics Summary */}
-
       <div className="analytics-summary">
 
         <div className="analytics-card">
 
           <div className="analytics-icon analytics-blue">
+
             <BarChart3 size={24} />
+
           </div>
 
           <div>
-            <span>Total Attack Events</span>
-            <strong>{totalAttacks}</strong>
+
+            <span>
+              Total Attack Events
+            </span>
+
+            <strong>
+              {totalAttackEvents}
+            </strong>
+
           </div>
 
         </div>
@@ -371,12 +1468,21 @@ function AnalyticsPage() {
         <div className="analytics-card">
 
           <div className="analytics-icon analytics-red">
+
             <AlertTriangle size={24} />
+
           </div>
 
           <div>
-            <span>Critical Events</span>
-            <strong>{criticalRisk}</strong>
+
+            <span>
+              Critical Events
+            </span>
+
+            <strong>
+              {criticalEvents}
+            </strong>
+
           </div>
 
         </div>
@@ -385,12 +1491,21 @@ function AnalyticsPage() {
         <div className="analytics-card">
 
           <div className="analytics-icon analytics-orange">
+
             <Target size={24} />
+
           </div>
 
           <div>
-            <span>High Risk Events</span>
-            <strong>{highRisk}</strong>
+
+            <span>
+              High Risk Events
+            </span>
+
+            <strong>
+              {highRiskEvents}
+            </strong>
+
           </div>
 
         </div>
@@ -399,12 +1514,21 @@ function AnalyticsPage() {
         <div className="analytics-card">
 
           <div className="analytics-icon analytics-green">
+
             <Shield size={24} />
+
           </div>
 
           <div>
-            <span>Risk Events</span>
-            <strong>{totalRiskEvents}</strong>
+
+            <span>
+              Risk Events
+            </span>
+
+            <strong>
+              {totalRiskEvents}
+            </strong>
+
           </div>
 
         </div>
@@ -412,18 +1536,24 @@ function AnalyticsPage() {
       </div>
 
 
-      {/* Traffic Trend */}
+      {/* =================================================
+          REAL TRAFFIC & THREAT TREND
+      ================================================= */}
 
       <div className="analytics-chart-card">
 
         <div className="analytics-chart-header">
 
           <div>
-            <h2>Traffic & Threat Trend</h2>
+
+            <h2>
+              Traffic & Threat Trend
+            </h2>
 
             <p>
               Requests and detected threats over time
             </p>
+
           </div>
 
           <TrendingUp size={22} />
@@ -431,104 +1561,137 @@ function AnalyticsPage() {
         </div>
 
 
-        <ResponsiveContainer
-          width="100%"
-          height={320}
-        >
+        {
+          trafficTrend.length === 0 ? (
 
-          <LineChart data={trafficTrend}>
+            <div
+              className="placeholder-text"
+              style={{
+                padding: "60px",
+                textAlign: "center"
+              }}
+            >
 
-            <CartesianGrid
-              stroke="#252d4a"
-              strokeDasharray="3 3"
-              vertical={false}
-            />
+              No traffic data available yet.
 
-            <XAxis
-              dataKey="time"
-              tick={{
-                fill: "#a5acc5",
-                fontSize: 12
-              }}
-              axisLine={{
-                stroke: "#303858"
-              }}
-              tickLine={false}
-            />
+            </div>
 
-            <YAxis
-              tick={{
-                fill: "#a5acc5",
-                fontSize: 12
-              }}
-              axisLine={false}
-              tickLine={false}
-            />
+          ) : (
 
-            <Tooltip
-              contentStyle={{
-                backgroundColor: "#11172a",
-                border: "1px solid #39446f",
-                borderRadius: "10px",
-                color: "#f5f7ff"
-              }}
-              labelStyle={{
-                color: "#ffffff"
-              }}
-              itemStyle={{
-                color: "#c4b5fd"
-              }}
-            />
+            <ResponsiveContainer
+              width="100%"
+              height={320}
+            >
 
-            <Line
-              type="monotone"
-              dataKey="requests"
-              stroke="#06B6D4"
-              strokeWidth={3}
-              name="Requests"
-              dot={{
-                r: 4,
-                fill: "#06B6D4"
-              }}
-              activeDot={{
-                r: 6
-              }}
-            />
+              <LineChart
+                data={trafficTrend}
+              >
 
-            <Line
-              type="monotone"
-              dataKey="threats"
-              stroke="#EF4444"
-              strokeWidth={3}
-              name="Threats"
-              dot={{
-                r: 4,
-                fill: "#EF4444"
-              }}
-              activeDot={{
-                r: 6
-              }}
-            />
+                <CartesianGrid
+                  stroke="#252d4a"
+                  strokeDasharray="3 3"
+                  vertical={false}
+                />
 
-          </LineChart>
 
-        </ResponsiveContainer>
+                <XAxis
+                  dataKey="time"
+                  tick={{
+                    fill: "#a5acc5",
+                    fontSize: 12
+                  }}
+                  axisLine={{
+                    stroke: "#303858"
+                  }}
+                  tickLine={false}
+                />
+
+
+                <YAxis
+                  tick={{
+                    fill: "#a5acc5",
+                    fontSize: 12
+                  }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+
+
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "#11172a",
+                    border: "1px solid #39446f",
+                    borderRadius: "10px",
+                    color: "#f5f7ff"
+                  }}
+                  labelStyle={{
+                    color: "#ffffff"
+                  }}
+                  itemStyle={{
+                    color: "#c4b5fd"
+                  }}
+                />
+
+
+                <Line
+                  type="monotone"
+                  dataKey="requests"
+                  stroke="#06B6D4"
+                  strokeWidth={3}
+                  name="Requests"
+                  dot={{
+                    r: 4,
+                    fill: "#06B6D4"
+                  }}
+                  activeDot={{
+                    r: 6
+                  }}
+                />
+
+
+                <Line
+                  type="monotone"
+                  dataKey="threats"
+                  stroke="#EF4444"
+                  strokeWidth={3}
+                  name="Threats"
+                  dot={{
+                    r: 4,
+                    fill: "#EF4444"
+                  }}
+                  activeDot={{
+                    r: 6
+                  }}
+                />
+
+              </LineChart>
+
+            </ResponsiveContainer>
+
+          )
+        }
 
       </div>
 
 
-      {/* Attack Distribution */}
+      {/* =================================================
+          ATTACK DISTRIBUTION
+      ================================================= */}
 
       <div className="analytics-chart-card">
 
         <div className="analytics-chart-header">
 
           <div>
-            <h2>Attack Distribution</h2>
+
+            <h2>
+              Attack Distribution
+            </h2>
 
             <p>
               Number of detected attacks by category
             </p>
+
           </div>
 
           <BarChart3 size={22} />
@@ -536,152 +1699,211 @@ function AnalyticsPage() {
         </div>
 
 
-        <ResponsiveContainer
-          width="100%"
-          height={320}
-        >
+        {
+          displayAttackStatistics.length === 0 ? (
 
-          <BarChart
-            data={attackStatistics}
-          >
-
-            <CartesianGrid
-              stroke="#252d4a"
-              strokeDasharray="3 3"
-              vertical={false}
-            />
-
-            <XAxis
-              dataKey="name"
-              tick={{
-                fill: "#a5acc5",
-                fontSize: 13
+            <div
+              className="placeholder-text"
+              style={{
+                padding: "60px",
+                textAlign: "center"
               }}
-              axisLine={{
-                stroke: "#303858"
-              }}
-              tickLine={false}
-            />
-
-            <YAxis
-              tick={{
-                fill: "#a5acc5",
-                fontSize: 12
-              }}
-              axisLine={false}
-              tickLine={false}
-            />
-
-            <Tooltip
-              contentStyle={{
-                backgroundColor: "#11172a",
-                border: "1px solid #39446f",
-                borderRadius: "10px",
-                color: "#f5f7ff",
-                boxShadow: "0 8px 25px rgba(0, 0, 0, 0.35)"
-              }}
-              labelStyle={{
-                color: "#ffffff",
-                fontWeight: 600
-              }}
-              itemStyle={{
-                color: "#c4b5fd"
-              }}
-              cursor={{
-                fill: "rgba(99, 102, 241, 0.08)"
-              }}
-            />
-
-            <Bar
-              dataKey="count"
-              radius={[8, 8, 0, 0]}
             >
 
-              {attackStatistics.map((entry, index) => {
+              No attack distribution data
+              available yet.
 
-                const colors = [
-                  "#3B82F6",
-                  "#8B5CF6",
-                  "#06B6D4",
-                  "#EC4899",
-                  "#F59E0B",
-                  "#22C55E",
-                  "#EF4444",
-                  "#14B8A6",
-                  "#6366F1",
-                  "#F97316"
-                ];
+            </div>
 
-                return (
-                  <Cell
-                    key={`cell-${index}`}
-                    fill={colors[index % colors.length]}
-                  />
-                );
+          ) : (
 
-              })}
+            <ResponsiveContainer
+              width="100%"
+              height={320}
+            >
 
-            </Bar>
+              <BarChart
+                data={
+                  displayAttackStatistics
+                }
+              >
 
-          </BarChart>
+                <CartesianGrid
+                  stroke="#252d4a"
+                  strokeDasharray="3 3"
+                  vertical={false}
+                />
 
-        </ResponsiveContainer>
+
+                <XAxis
+                  dataKey="name"
+                  tick={{
+                    fill: "#a5acc5",
+                    fontSize: 13
+                  }}
+                  axisLine={{
+                    stroke: "#303858"
+                  }}
+                  tickLine={false}
+                />
+
+
+                <YAxis
+                  allowDecimals={false}
+                  tick={{
+                    fill: "#a5acc5",
+                    fontSize: 12
+                  }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+
+
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "#11172a",
+                    border: "1px solid #39446f",
+                    borderRadius: "10px",
+                    color: "#f5f7ff"
+                  }}
+                  labelStyle={{
+                    color: "#ffffff",
+                    fontWeight: 600
+                  }}
+                  itemStyle={{
+                    color: "#c4b5fd"
+                  }}
+                  cursor={{
+                    fill:
+                      "rgba(99, 102, 241, 0.08)"
+                  }}
+                />
+
+
+                <Bar
+                  dataKey="count"
+                  radius={[
+                    8,
+                    8,
+                    0,
+                    0
+                  ]}
+                >
+
+                  {
+                    displayAttackStatistics.map(
+                      (
+                        entry,
+                        index
+                      ) => {
+
+                        const colors = [
+
+                          "#3B82F6",
+                          "#8B5CF6",
+                          "#06B6D4",
+                          "#EC4899",
+                          "#F59E0B",
+                          "#22C55E",
+                          "#EF4444",
+                          "#14B8A6",
+                          "#6366F1",
+                          "#F97316"
+
+                        ];
+
+                        return (
+
+                          <Cell
+                            key={
+                              `cell-${index}`
+                            }
+                            fill={
+                              colors[
+                                index %
+                                colors.length
+                              ]
+                            }
+                          />
+
+                        );
+
+                      }
+                    )
+                  }
+
+                </Bar>
+
+              </BarChart>
+
+            </ResponsiveContainer>
+
+          )
+        }
 
       </div>
 
 
-      {/* Risk Analysis */}
+      {/* =================================================
+          RISK / SECURITY SUMMARY
+      ================================================= */}
 
       <div className="analytics-bottom-grid">
 
         <div className="analytics-info-card">
 
-          <h2>Risk Overview</h2>
+          <h2>
+            Risk Overview
+          </h2>
+
 
           <div className="risk-row">
 
-            <span>Critical</span>
+            <span>
+              Critical
+            </span>
 
             <strong>
-              {criticalRisk}
+              {criticalEvents}
             </strong>
 
           </div>
 
+
           <div className="risk-row">
 
-            <span>High</span>
+            <span>
+              High
+            </span>
 
             <strong>
-              {highRisk}
+              {highRiskEvents}
             </strong>
 
           </div>
 
+
           <div className="risk-row">
 
-            <span>Medium</span>
+            <span>
+              Medium
+            </span>
 
             <strong>
-              {
-                riskDistribution.find(
-                  (item) => item.name === "MEDIUM"
-                )?.count || 0
-              }
+              {mediumRiskEvents}
             </strong>
 
           </div>
 
+
           <div className="risk-row">
 
-            <span>Low</span>
+            <span>
+              Low
+            </span>
 
             <strong>
-              {
-                riskDistribution.find(
-                  (item) => item.name === "LOW"
-                )?.count || 0
-              }
+              {lowRiskEvents}
             </strong>
 
           </div>
@@ -691,7 +1913,10 @@ function AnalyticsPage() {
 
         <div className="analytics-info-card">
 
-          <h2>Security Summary</h2>
+          <h2>
+            Security Summary
+          </h2>
+
 
           <div className="summary-item">
 
@@ -704,8 +1929,8 @@ function AnalyticsPage() {
               </strong>
 
               <p>
-                API traffic is being monitored for
-                suspicious activity.
+                API traffic is being monitored
+                for suspicious activity.
               </p>
 
             </div>
@@ -724,8 +1949,8 @@ function AnalyticsPage() {
               </strong>
 
               <p>
-                Detected events are analyzed and
-                assigned risk levels.
+                Detected events are analyzed
+                and assigned risk levels.
               </p>
 
             </div>
@@ -737,17 +1962,21 @@ function AnalyticsPage() {
       </div>
 
     </main>
+
   );
 }
 
 
-/* =========================
+/* =========================================================
    MAIN LAYOUT
-========================= */
+========================================================= */
 
-function Layout({ children }) {
+function Layout({
+  children
+}) {
 
   return (
+
     <div className="app">
 
       <Sidebar />
@@ -761,76 +1990,110 @@ function Layout({ children }) {
       </div>
 
     </div>
+
   );
 }
 
 
-/* =========================
-   ROUTES
-========================= */
+/* =========================================================
+   APP ROUTES
+========================================================= */
 
 function App() {
 
   return (
+
     <BrowserRouter>
 
       <Routes>
-        <Route
-  path="/enterprise"
-  element={
-    <Layout>
-      <EnterpriseDashboard />
-    </Layout>
-  }
-/>
+
         <Route
           path="/"
           element={
+
             <Layout>
+
               <Dashboard />
+
             </Layout>
+
           }
         />
+
 
         <Route
           path="/threats"
           element={
+
             <Layout>
+
               <ThreatsPage />
+
             </Layout>
+
           }
         />
+
 
         <Route
           path="/analytics"
           element={
+
             <Layout>
+
               <AnalyticsPage />
+
             </Layout>
+
           }
         />
+
 
         <Route
           path="/threat/:id"
           element={
+
             <Layout>
+
               <ThreatDetails />
+
             </Layout>
+
           }
         />
+
 
         <Route
           path="/attack-simulation"
           element={
+
             <Layout>
+
               <AttackSimulation />
+
             </Layout>
+
+          }
+        />
+
+
+        <Route
+          path="/enterprise"
+          element={
+
+            <Layout>
+
+              <EnterpriseDashboard />
+
+            </Layout>
+
           }
         />
 
       </Routes>
 
     </BrowserRouter>
+
   );
 }
 

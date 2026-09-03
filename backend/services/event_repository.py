@@ -30,6 +30,9 @@ class EventRepository:
                 else None
             ),
             "mitigation_action": processing_result.mitigation_action,
+
+            # RAG + Gemini AI analysis
+            "ai_analysis": processing_result.ai_analysis,
         }
 
         events_collection.update_one(
@@ -43,7 +46,9 @@ class EventRepository:
         window_seconds: int = 300,
     ) -> list[ApiSecurityEvent]:
 
-        start_time = event.timestamp - timedelta(seconds=window_seconds)
+        start_time = event.timestamp - timedelta(
+            seconds=window_seconds
+        )
 
         documents = events_collection.find(
             {
@@ -53,7 +58,10 @@ class EventRepository:
                 },
                 "network.source_ip": event.network.source_ip,
             }
-        ).sort("timestamp", -1)
+        ).sort(
+            "timestamp",
+            -1
+        )
 
         return [
             ApiSecurityEvent.model_validate(document)

@@ -20,12 +20,39 @@ async function apiRequest(endpoint, options = {}) {
   );
 
   if (!response.ok) {
-    throw new Error(
-      `API Error: ${response.status} ${response.statusText}`
-    );
+    let errorMessage = `API Error: ${response.status} ${response.statusText}`;
+
+    try {
+      const errorData = await response.json();
+
+      if (errorData?.detail) {
+        errorMessage += ` - ${JSON.stringify(errorData.detail)}`;
+      }
+    } catch {
+      // Keep the default error message if response is not JSON
+    }
+
+    throw new Error(errorMessage);
   }
 
   return response.json();
+}
+
+
+/* =========================
+   PROCESS SECURITY EVENT
+========================= */
+
+export async function processEvent(event, mlFeatures = null) {
+
+  return apiRequest("/events", {
+    method: "POST",
+    body: JSON.stringify({
+      event,
+      ml_features: mlFeatures
+    })
+  });
+
 }
 
 
