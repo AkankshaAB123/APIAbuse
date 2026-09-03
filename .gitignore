@@ -36,3 +36,7 @@ Thumbs.db
 # ML datasets and local test artifacts
 ml/datasets/
 ml_test_features.json
+
+# Temporary deployment test environment
+.deploy_test/
+
