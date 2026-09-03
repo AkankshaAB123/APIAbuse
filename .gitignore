@@ -1,7 +1,31 @@
-
+# Environment variables
 .env
+.env.*
 
+# Python
 __pycache__/
-*.pyc
+*.py[cod]
+*.pyo
 
+# RAG generated files
 rag/embeddings/data/
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# Node
+node_modules/
+
+# Build output
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
