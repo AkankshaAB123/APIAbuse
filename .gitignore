@@ -8,7 +8,6 @@ __pycache__/
 *.pyo
 
 # RAG generated files
-rag/embeddings/data/
 
 # Virtual environments
 venv/
