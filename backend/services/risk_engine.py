@@ -1,5 +1,6 @@
-from schemas.detector_result import DetectorResult
-from schemas.risk_assessment import RiskAssessment
+from backend.schemas.detector_result import DetectorResult
+from backend.schemas.ml_result import MLResult
+from backend.schemas.risk_assessment import RiskAssessment
 
 
 class RiskEngine:
@@ -8,16 +9,10 @@ class RiskEngine:
         self,
         event_id: str,
         detector_results: list[DetectorResult] | None = None,
-        ml_attack_probability: float = 0.0,
-        ml_is_anomaly: bool = False,
-        ml_anomaly_score: float = 0.0,
+        ml_result: MLResult | None = None,
     ) -> RiskAssessment:
         """
-        Combine available detection signals into a preliminary
-        risk assessment.
-
-        The final scoring strategy will be refined after the
-        detector, ML, and RAG interfaces are finalized.
+        Combine API detector and ML signals into one risk assessment.
         """
 
         detector_results = detector_results or []
@@ -29,42 +24,76 @@ class RiskEngine:
         # API detector signals
         # -------------------------------------------------
 
-        for result in detector_results:
-            if result.detected:
-                if result.attack_type:
-                    attack_types.append(result.attack_type)
+        detected_results = [
+            result
+            for result in detector_results
+            if result.detected
+        ]
 
-                for evidence in result.evidence:
-                    reasons.append(evidence.message)
+        for result in detected_results:
+            if result.attack_type:
+                attack_types.append(result.attack_type)
+
+            for evidence in result.evidence:
+                reasons.append(evidence.message)
 
         # -------------------------------------------------
-        # Preliminary risk signals
+        # API detector score
         # -------------------------------------------------
 
         detector_score = 0.0
 
-        if detector_results:
-            detected_results = [
-                result for result in detector_results
-                if result.detected
-            ]
-
-            if detected_results:
-                detector_score = max(
-                    result.confidence * 100
-                    for result in detected_results
-                )
-
-        ml_score = ml_attack_probability * 100
-
-        if ml_is_anomaly:
-            ml_score = max(ml_score, 50.0)
+        if detected_results:
+            detector_score = max(
+                result.confidence * 100
+                for result in detected_results
+            )
 
         # -------------------------------------------------
-        # Preliminary combined score
+        # ML signals
+        # -------------------------------------------------
+
+        ml_score = 0.0
+        ml_anomaly = False
+
+        if ml_result is not None:
+            prediction = ml_result.detection.prediction
+            confidence = ml_result.detection.confidence
+
+            ml_anomaly = ml_result.anomaly.is_anomaly
+
+            # XGBoost confidence is only treated as an
+            # attack signal when the predicted class is
+            # actually an attack.
+            if prediction.upper() != "BENIGN":
+                ml_score = confidence * 100
+
+                attack_types.append(prediction)
+
+                explanation = ml_result.detection.attack_explanation
+
+                if isinstance(explanation, dict):
+                    summary = explanation.get("summary")
+
+                    if summary:
+                        reasons.append(summary)
+
+            # Isolation Forest is an anomaly signal,
+            # not an attack probability.
+            if ml_anomaly:
+                reasons.append(
+                    "Isolation Forest detected anomalous network behavior."
+                )
+
+        # -------------------------------------------------
+        # Combined risk score
         # -------------------------------------------------
 
         risk_score = max(detector_score, ml_score)
+
+        # Anomaly detection acts as supporting evidence.
+        if ml_anomaly:
+            risk_score = max(risk_score, 50.0)
 
         risk_score = min(risk_score, 100.0)
 
@@ -81,10 +110,17 @@ class RiskEngine:
         else:
             risk_level = "LOW"
 
+        # -------------------------------------------------
+        # Threat decision
+        # -------------------------------------------------
+
         threat_detected = (
-            bool(attack_types)
-            or ml_attack_probability >= 0.5
-            or ml_is_anomaly
+            bool(detected_results)
+            or (
+                ml_result is not None
+                and ml_result.detection.prediction.upper() != "BENIGN"
+            )
+            or ml_anomaly
         )
 
         return RiskAssessment(
@@ -94,4 +130,6 @@ class RiskEngine:
             threat_detected=threat_detected,
             attack_types=list(dict.fromkeys(attack_types)),
             reasons=list(dict.fromkeys(reasons)),
+            detector_count=len(detector_results),
+            ml_anomaly=ml_anomaly,
         )

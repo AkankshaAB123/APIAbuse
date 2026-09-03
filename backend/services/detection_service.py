@@ -1,15 +1,31 @@
-from schemas.api_security_event import ApiSecurityEvent
-from schemas.detector_result import DetectorResult
+from collections.abc import Sequence
+
+from backend.schemas.api_security_event import ApiSecurityEvent
+from backend.schemas.detector_result import DetectorResult
+from backend.services.event_repository import EventRepository
+
+from api_detection.backend_adapter import run_for_backend
 
 
 class DetectionService:
 
-    def detect(self, event: ApiSecurityEvent) -> list[DetectorResult]:
-        """
-        Run the available API security detectors for an event.
+    repository = EventRepository()
 
-        Member 2's detectors will be connected here when they
-        are available.
-        """
+    def detect(
+        self,
+        event: ApiSecurityEvent,
+        recent_events: Sequence[ApiSecurityEvent] | None = None,
+    ) -> list[DetectorResult]:
 
-        return []
+        if recent_events is None:
+            recent_events = self.repository.get_recent_events(event)
+
+        results = run_for_backend(
+            event,
+            recent_events,
+        )
+
+        return [
+            DetectorResult.model_validate(result)
+            for result in results
+        ]

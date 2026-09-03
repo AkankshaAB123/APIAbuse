@@ -8,3 +8,5 @@ class RiskAssessment(BaseModel):
     threat_detected: bool
     attack_types: list[str] = Field(default_factory=list)
     reasons: list[str] = Field(default_factory=list)
+    detector_count: int = 0
+    ml_anomaly: bool = False

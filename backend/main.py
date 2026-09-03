@@ -1,7 +1,6 @@
 from fastapi import FastAPI
 
-from routes.events import router as events_router
-
+from backend.routes.events import router as events_router
 
 app = FastAPI(
     title="API Threat Detection System",

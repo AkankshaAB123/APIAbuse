@@ -10,11 +10,13 @@ __pycache__/
 # Environment variables
 .env
 .env.*
+.venv310/
 
 # Machine Learning generated files
 ml/datasets/
 ml/models/*.pkl
 ml/models/*.joblib
+ml_test_features.json
 
 # IDE files
 .vscode/
@@ -23,3 +25,5 @@ ml/models/*.joblib
 # OS files
 .DS_Store
 Thumbs.db
+
+
