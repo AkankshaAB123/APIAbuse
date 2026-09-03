@@ -18,7 +18,12 @@ from .ddos import detect_ddos
 from .dos_flooding import detect_dos_flooding
 from .network_brute_force import detect_network_brute_force
 from .port_scanning import detect_port_scanning
-
+from .keylogging import detect_keylogging
+from .suspicious_process_execution import (
+    detect_suspicious_process_execution,
+)
+from .reverse_shell import detect_reverse_shell
+from .privilege_escalation import detect_privilege_escalation
 
 __all__ = [
     "detect_account_takeover",
@@ -35,4 +40,8 @@ __all__ = [
     "detect_dos_flooding",
     "detect_network_brute_force",
     "detect_port_scanning",
+    "detect_keylogging",
+    "detect_suspicious_process_execution",
+    "detect_reverse_shell",
+    "detect_privilege_escalation",
 ]
