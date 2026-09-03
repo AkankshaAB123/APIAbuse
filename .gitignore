@@ -29,3 +29,10 @@ build/
 # OS
 .DS_Store
 Thumbs.db
+
+# Local Python virtual environment
+.venv310/
+
+# ML datasets and local test artifacts
+ml/datasets/
+ml_test_features.json
