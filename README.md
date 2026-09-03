@@ -1,282 +1,127 @@
-# Member 1 --- ML Handover
 
-## 1. How to Run the ML Demo
+# APIAbuse — Intelligent API & Network Threat Detection System
 
-From the **root of the GitHub repository**, run:
+APIAbuse is an intelligent security system designed to detect, analyze,
+and respond to API-level and network-level security threats.
 
-``` bash
-python -m ml.evaluation.demo_multiclass
-```
+The system combines rule-based API attack detection, machine learning,
+anomaly detection, risk assessment, mitigation recommendations,
+MongoDB persistence, RAG/LLM-based explanations, and a React dashboard.
 
-This is the **main command for testing the complete ML component**.
+---
 
-The demo:
+## 🚀 Features
 
-1.  Loads the CICIDS2017 dataset.
-2.  Selects traffic samples from the dataset.
-3.  Extracts the 78 network-flow features.
-4.  Calls `predictor.py`.
-5.  Runs the trained XGBoost multiclass model.
-6.  Produces the ML prediction output as JSON.
+- Detection of 10 enterprise/API attack categories
+- Rule-based API security detectors
+- Multiclass XGBoost network intrusion detection
+- Isolation Forest anomaly detection
+- Risk scoring and threat classification
+- Mitigation recommendations
+- MongoDB event and result persistence
+- RAG/LLM-based threat explanations
+- React security dashboard
+- FastAPI backend integration
 
-### Important
+---
 
-Do **not** run `predictor.py` as the demo.
+## 🛡️ Supported API Threats
 
-Use:
-
-``` bash
-python -m ml.evaluation.demo_multiclass
-```
-
-`demo_multiclass.py` calls `predictor.py` internally.
-
-------------------------------------------------------------------------
-
-# 2. Member 3 --- ML Integration
-
-**Member 3 is responsible for integrating the ML component into the
-backend.**
-
-Member 3 must run the multiclass ML demo to verify the ML component and
-see the exact JSON output:
-
-``` bash
-python -m ml.evaluation.demo_multiclass
-```
-
-The current flow is:
-
-``` text
-CICIDS/network-flow features
-            ↓
-   demo_multiclass.py
-            ↓
-       predictor.py
-            ↓
-      XGBoost model
-            ↓
-       Prediction JSON
-            ↓
-        MEMBER 3
-```
-
-### ML Detection Result
-
-Member 3 should use the JSON output from `demo_multiclass.py` as the
-**ML detection result** when integrating the ML component into the
-backend.
-
-The current JSON format is:
-
-``` json
-{
-    "prediction": "DDoS",
-    "confidence": 0.999997,
-    "attack_explanation": {
-        "summary": "The traffic was classified as DDoS because its network-flow behavior matched patterns learned from distributed denial-of-service traffic.",
-        "characteristics": [
-            "High traffic or packet volume",
-            "Abnormal packet-rate behavior",
-            "Flow characteristics associated with denial-of-service activity"
-        ]
-    },
-    "reasons": [
-        {
-            "feature": "Flow Packets/s",
-            "value": 12345.67,
-            "importance": 0.18,
-            "explanation": "Flow Packets/s is one of the features the trained model considers important when distinguishing network traffic classes."
-        }
-    ],
-    "model": "xgboost_multiclass"
-}
-```
-
-The important fields for Member 3 are:
-
-``` text
-prediction
-confidence
-attack_explanation
-reasons
-model
-```
-
-Member 3 can then combine this ML result with:
-
--   Member 2's API attack-detector results
--   anomaly information
--   risk scoring
--   database storage
--   mitigation logic
-
-### What Member 3 needs to do
-
-First verify the ML output by running:
-
-``` bash
-python -m ml.evaluation.demo_multiclass
-```
-
-Then integrate the predictor into the FastAPI backend.
-
-The predictor can be called from Python with:
-
-``` python
-from ml.api.predictor import predict
-
-result = predict(features)
-```
-
-The backend should preserve the same prediction JSON structure when
-exposing the ML result to the rest of the application.
-
-Member 3 **does not need to recreate the XGBoost logic**.
-
-The ML component already handles the prediction.
-
-------------------------------------------------------------------------
-
-# 3. Member 2 --- API Attack Detectors
-
-Member 2 does **not** own the ML component.
-
-Member 2 owns the **10 enterprise API attack detectors**:
-
-1.  BOLA / IDOR
-2.  Broken Function-Level Authorization / Privilege Escalation
-3.  Credential Attacks
-4.  Account Takeover / Valid Account Abuse
-5.  SQL Injection
-6.  SSRF
-7.  Resource Exhaustion / API Flooding
-8.  Sensitive Business-Flow Abuse / Automation
-9.  API Reconnaissance / Endpoint Enumeration
+1. BOLA / IDOR
+2. Broken Function-Level Authorization / Privilege Escalation
+3. Credential Attacks
+4. Account Takeover / Valid Account Abuse
+5. SQL Injection
+6. SSRF
+7. Resource Exhaustion / API Flooding
+8. Sensitive Business-Flow Abuse / Automation
+9. API Reconnaissance / Endpoint Enumeration
 10. Security Misconfiguration / Exposed API
 
-Member 2 provides their detection results to Member 3.
+The API detectors handle API-level threats, while the ML component
+focuses on network-flow based intrusion detection and anomaly detection.
 
-Member 3 then combines those results with the ML result.
+CICIDS2017 is used for the network intrusion detection component and is
+not claimed to directly represent all 10 API attack categories.
 
-------------------------------------------------------------------------
+---
 
-# 4. Member 3 --- Backend / Risk / Database Integration
+## 🏗️ System Architecture
 
-Member 3 owns the central integration layer.
+```text
+                 ┌───────────────────┐
+                 │     Member 1      │
+                 │   ML + Anomaly    │
+                 │ XGBoost + IF      │
+                 └─────────┬─────────┘
+                           │
+                           ▼
+┌───────────────────┐   ┌───────────────────┐
+│     Member 2      │   │     Member 3      │
+│   API Detectors   │──▶│   FastAPI Backend  │
+│   10 Threats      │   │   Risk + MongoDB   │
+└───────────────────┘   │   + Mitigation     │
+                        └─────────┬───────────┘
+                                  │
+                                  ▼
+                        ┌───────────────────┐
+                        │     Member 4      │
+                        │   RAG + LLM +      │
+                        │ React Dashboard    │
+                        └───────────────────┘
+````
 
-Expected responsibilities include:
+---
 
-``` text
-FastAPI
-Risk Engine
-MongoDB
-Mitigation
-Integration
-```
+## 🔄 Backend Processing Flow
 
-The overall integration is:
-
-``` text
-Member 1
-ML prediction
-+
-Anomaly information
+```text
+API Security Event
         │
         ▼
-Member 3
-FastAPI
-Risk Engine
-MongoDB
-Mitigation
-        ▲
+     FastAPI
         │
-Member 2
-10 API Attack Detectors
-        │
-        ▼
-Member 3
-        │
-        ▼
-Member 4
-RAG + LLM + React Dashboard
+        ├───────────────┐
+        ▼               ▼
+ API Detectors       ML + Anomaly
+        │               │
+        └───────┬───────┘
+                ▼
+           Risk Engine
+                │
+                ▼
+        Risk Assessment
+                │
+                ▼
+           Mitigation
+                │
+                ▼
+             MongoDB
+                │
+                ▼
+        Backend Response
+                │
+                ▼
+         React Dashboard
+                │
+                ▼
+            RAG / LLM
 ```
 
-Member 3 should normalize the information from Members 1 and 2 into the
-application's common threat/event structure.
+---
 
-------------------------------------------------------------------------
+## 🧠 Machine Learning
 
-# 5. Member 4 --- RAG / LLM / React Dashboard
+The ML component uses:
 
-Member 4 consumes the final information exposed by Member 3's backend.
+* CICIDS2017 dataset
+* 78 network-flow features
+* Multiclass XGBoost
+* Isolation Forest anomaly detection
 
-Member 4 owns:
+XGBoost provides:
 
-``` text
-RAG
-LLM
-React Dashboard
-```
-
-The intended flow is:
-
-``` text
-Member 3 Backend
-       ↓
-     API
-       ↓
-Member 4 Frontend
-       ↓
-RAG / LLM / Dashboard
-```
-
-Member 4 does not need to interact directly with the XGBoost model.
-
-------------------------------------------------------------------------
-
-# 6. Member 1 → Member 3 Handover
-
-The ML handoff is:
-
-``` text
-Member 1
-    ↓
-demo_multiclass.py
-    ↓
-predictor.py
-    ↓
-XGBoost
-    ↓
-JSON prediction
-    ↓
-Member 3
-```
-
-### Member 3's first step
-
-Run:
-
-``` bash
-python -m ml.evaluation.demo_multiclass
-```
-
-This verifies that the ML component is working and shows the JSON
-structure that Member 3 will integrate.
-
-### Integration step
-
-After verifying the demo, Member 3 can use:
-
-``` python
-from ml.api.predictor import predict
-
-result = predict(features)
-```
-
-The resulting `result` should contain:
-
-``` text
+```text
 prediction
 confidence
 attack_explanation
@@ -284,111 +129,207 @@ reasons
 model
 ```
 
-This result becomes one of the inputs to the backend's risk/integration
-layer.
+Isolation Forest provides:
 
-------------------------------------------------------------------------
-
-# 7. Overall Team Architecture
-
-``` text
-                    MEMBER 1
-                 ML + Anomaly
-                       │
-                       │ ML JSON
-                       ▼
-                 ┌───────────┐
-                 │ MEMBER 3  │
-                 │ FastAPI   │
-                 │ Risk      │
-                 │ MongoDB   │
-                 │ Mitigation│
-                 └─────┬─────┘
-                       ▲
-                       │ API Detection Results
-                       │
-                 MEMBER 2
-              10 API Detectors
-
-                       │
-                       ▼
-                 MEMBER 3
-                       │
-                       │ Backend API
-                       ▼
-                 MEMBER 4
-              RAG + LLM + React
+```text
+is_anomaly
+anomaly_score
 ```
 
-------------------------------------------------------------------------
+### Run the ML Demo
 
-# 8. Responsibilities at a Glance
+From the repository root:
 
-  -----------------------------------------------------------------------
-  Member                  Responsibility          Handoff
-  ----------------------- ----------------------- -----------------------
-  **Member 1**            ML + anomaly detection  Prediction + anomaly
-                                                  results
-
-  **Member 2**            10 API attack detectors Detection + evidence +
-                                                  confidence
-
-  **Member 3**            FastAPI + integration + Final threat
-                          risk + MongoDB +        information
-                          mitigation              
-
-  **Member 4**            RAG + LLM + React       Uses Member 3's backend
-                          dashboard               
-  -----------------------------------------------------------------------
-
-------------------------------------------------------------------------
-
-# 9. Current ML Status
-
-The current ML component provides:
-
--   CICIDS2017 dataset-based testing
--   Multiclass XGBoost prediction
--   78 network-flow features
--   Confidence score
--   Attack explanation
--   Feature importance/reasons
--   JSON prediction output
--   `demo_multiclass.py` as the main test entry point
-
-### Required ML demo command
-
-``` bash
+```bash
 python -m ml.evaluation.demo_multiclass
 ```
 
-**Member 3 should run this command when starting the ML integration.**
+---
 
-### Current integration boundary
+## ⚙️ Backend
 
-``` text
-ML side:
-demo_multiclass.py
-        ↓
-predictor.py
-        ↓
-XGBoost
-        ↓
-JSON
+The backend is built using **FastAPI**.
 
-Backend side:
-JSON
-  ↓
-Member 3 / FastAPI
-  ↓
-Risk Engine
-  ↓
-MongoDB
-  ↓
-Mitigation
-  ↓
-Member 4 / Dashboard
+Main endpoint:
+
+```text
+POST /events
 ```
 
-Live network traffic/flow extraction is a separate integration step and
-is not required to run the current dataset-based ML demo.
+The endpoint accepts:
+
+* API security event information
+* Optional ML network-flow features
+
+The backend integrates:
+
+```text
+API Detectors
+      +
+XGBoost
+      +
+Isolation Forest
+      ↓
+Risk Engine
+      ↓
+Mitigation
+      ↓
+MongoDB
+```
+
+---
+
+## 📊 Risk & Mitigation
+
+### Risk Levels
+
+| Risk Score | Level    |
+| ---------- | -------- |
+| 90–100     | CRITICAL |
+| 70–89      | HIGH     |
+| 40–69      | MEDIUM   |
+| 0–39       | LOW      |
+
+### Mitigation Recommendations
+
+| Risk Level | Action     |
+| ---------- | ---------- |
+| LOW        | ALLOW      |
+| MEDIUM     | MONITOR    |
+| HIGH       | RATE_LIMIT |
+| CRITICAL   | BLOCK      |
+
+> Mitigation is currently recommendation-based and does not directly
+> enforce blocking or rate limiting on production traffic.
+
+---
+
+## 🗄️ MongoDB
+
+Processed events are persisted in MongoDB.
+
+```text
+Event
+│
+├── network
+├── identity
+├── request
+├── response
+├── resource
+│
+└── processing
+    ├── detector_results
+    ├── ml_result
+    ├── risk_assessment
+    └── mitigation_action
+```
+
+MongoDB configuration is stored locally in:
+
+```text
+backend/.env
+```
+
+Never commit `.env` or database credentials to GitHub.
+
+---
+
+## 📁 Project Structure
+
+```text
+APIAbuse/
+│
+├── api_detection/     # API attack detectors
+├── backend/           # FastAPI, risk, database & mitigation
+├── frontend/          # React dashboard
+├── ml/                # ML & anomaly detection
+├── rag/               # RAG / LLM components
+├── tests/             # Backend tests
+├── docs/              # Project documentation
+│
+├── requirements.txt
+├── .gitignore
+└── README.md
+```
+
+---
+
+## 🧪 Testing
+
+Run the backend test suite:
+
+```bash
+python -m pytest .\tests -v
+```
+
+Current backend test status:
+
+```text
+9 passed
+```
+
+The tests cover:
+
+* SQL Injection detection
+* Benign event processing
+* Invalid event validation
+* MongoDB persistence
+* FastAPI error handling
+* Mitigation decisions for LOW, MEDIUM, HIGH and CRITICAL risk
+
+---
+
+## 👥 Team Responsibilities
+
+| Member       | Responsibility                                      |
+| ------------ | --------------------------------------------------- |
+| **Member 1** | ML + Anomaly Detection                              |
+| **Member 2** | 10 API Attack Detectors                             |
+| **Member 3** | FastAPI + Integration + Risk + MongoDB + Mitigation |
+| **Member 4** | RAG + LLM + React Dashboard                         |
+
+---
+
+## 📌 Current Status
+
+```text
+API Detection          ✅ Complete
+ML + Anomaly           ✅ Complete
+FastAPI Backend        ✅ Complete
+Risk Engine            ✅ Complete (foundation)
+MongoDB                ✅ Complete
+Mitigation             ✅ Complete
+Backend Testing        ✅ Complete
+RAG                    ✅ Implemented
+React Dashboard        ✅ Implemented
+Final Integration      🔄 In Progress
+```
+
+---
+
+## 🎯 Final Goal
+
+APIAbuse aims to provide a unified security platform that can:
+
+```text
+Detect
+  ↓
+Analyze
+  ↓
+Assess Risk
+  ↓
+Recommend Mitigation
+  ↓
+Store Results
+  ↓
+Explain Threats
+  ↓
+Visualize Security Events
+```
+
+The final system combines:
+
+**Known Threat Detection + ML Anomaly Analysis + Risk-Based Response +
+RAG/LLM Security Explanation**
+
+```
