@@ -30,4 +30,22 @@ function EmptyState({ title = "No threats found.", message }) {
   );
 }
 
-export { LoadingState, ErrorState, EmptyState };
+function AccessRestricted({ role = "Security Analyst" }) {
+  return (
+    <main className="page-content">
+      <div className="access-restricted state-panel">
+        <strong>Access Restricted</strong>
+        <p>You do not have permission to access this security management feature.</p>
+        <div className="information-row">
+          <span>Current role</span>
+          <strong>{role}</strong>
+        </div>
+        <a className="view-threat-button" href="/">
+          Return to Dashboard
+        </a>
+      </div>
+    </main>
+  );
+}
+
+export { LoadingState, ErrorState, EmptyState, AccessRestricted };

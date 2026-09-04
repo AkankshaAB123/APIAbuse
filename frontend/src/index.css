@@ -4123,6 +4123,14 @@ tbody tr:hover {
   font-size: 11px;
 }
 
+.profile-trigger em {
+  color: #93c5fd;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
 .profile-dropdown {
   position: absolute;
   right: 0;
@@ -4177,6 +4185,17 @@ tbody tr:hover {
 .copilot-empty p,
 .state-panel p {
   color: #8f9bb9;
+}
+
+.demo-account-grid {
+  display: grid;
+  gap: 10px;
+  margin: 14px 0;
+}
+
+.access-restricted {
+  max-width: 620px;
+  margin: 70px auto;
 }
 
 .login-brand-mark {

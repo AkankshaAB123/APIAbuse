@@ -57,6 +57,8 @@ import {
   getStatistics
 } from "./services/api";
 import { formatAttackType } from "./data/attackTypes";
+import { isAdmin, ROLE_LABELS } from "./data/roles";
+import { AccessRestricted } from "./components/States";
 
 
 /* =========================================================
@@ -106,7 +108,7 @@ function buildAttackStatistics(threats) {
    DASHBOARD
 ========================================================= */
 
-function Dashboard() {
+function Dashboard({ user }) {
 
   const [
     statistics,
@@ -410,10 +412,12 @@ function Dashboard() {
       </div>
 
       <div className="dashboard-action-bar">
-        <Link className="primary-action" to="/security-test">
-          <Plus size={17} />
-          NEW SECURITY TEST
-        </Link>
+        {isAdmin(user) && (
+          <Link className="primary-action" to="/security-test">
+            <Plus size={17} />
+            NEW SECURITY TEST
+          </Link>
+        )}
         <Link className="secondary-action" to="/ai-copilot">
           <Bot size={17} />
           ASK SECURITY AI
@@ -2035,7 +2039,7 @@ function Layout({
 
     <div className="app">
 
-      <Sidebar />
+      <Sidebar user={user} />
 
       <div className="main-content">
 
@@ -2080,6 +2084,15 @@ function App() {
     </Layout>
   );
 
+  const adminShell = (children) =>
+    isAdmin(user)
+      ? shell(children)
+      : shell(
+          <AccessRestricted
+            role={ROLE_LABELS[user?.role] || "Security Analyst"}
+          />
+        );
+
   return (
 
     <BrowserRouter>
@@ -2098,7 +2111,7 @@ function App() {
         <Route
           path="/"
           element={
-            shell(<Dashboard />)
+            shell(<Dashboard user={user} />)
 
           }
         />
@@ -2134,7 +2147,7 @@ function App() {
         <Route
           path="/attack-simulation"
           element={
-            shell(<AttackSimulation />)
+            adminShell(<AttackSimulation />)
 
           }
         />
@@ -2143,14 +2156,14 @@ function App() {
         <Route
           path="/enterprise"
           element={
-            shell(<EnterpriseDashboard />)
+            adminShell(<EnterpriseDashboard />)
 
           }
         />
 
         <Route
           path="/security-test"
-          element={shell(<NewSecurityTest />)}
+          element={adminShell(<NewSecurityTest />)}
         />
 
         <Route

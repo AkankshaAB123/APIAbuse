@@ -1,4 +1,5 @@
 import { NavLink } from "react-router-dom";
+import { isAdmin } from "../data/roles";
 
 const navSections = [
   {
@@ -37,7 +38,22 @@ const navSections = [
   },
 ];
 
-function Sidebar() {
+function Sidebar({ user }) {
+  const visibleSections = navSections
+    .map((section) => ({
+      ...section,
+      links: section.links.filter((link) => {
+        const adminOnly = [
+          "/attack-simulation",
+          "/security-test",
+          "/enterprise",
+        ].includes(link.to);
+
+        return !adminOnly || isAdmin(user);
+      }),
+    }))
+    .filter((section) => section.links.length > 0);
+
   return (
     <aside className="sidebar">
 
@@ -47,7 +63,7 @@ function Sidebar() {
       </div>
 
       <nav className="sidebar-menu">
-        {navSections.map((section) => (
+        {visibleSections.map((section) => (
           <div key={section.title} className="sidebar-section">
             <div className="sidebar-section-title">
               {section.title}
