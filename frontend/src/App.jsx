@@ -17,7 +17,10 @@ import {
   TrendingUp,
   BarChart3,
   Shield,
-  Target
+  Target,
+  Bot,
+  Plus,
+  Eye
 } from "lucide-react";
 
 import {
@@ -43,11 +46,17 @@ import ThreatTable from "./components/ThreatTable";
 import ThreatDetails from "./pages/ThreatDetails";
 import AttackSimulation from "./pages/AttackSimulation";
 import EnterpriseDashboard from "./pages/EnterpriseDashboard";
+import LoginPage from "./pages/LoginPage";
+import NewSecurityTest from "./pages/NewSecurityTest";
+import AlertsPage from "./pages/AlertsPage";
+import ApiInventory from "./pages/ApiInventory";
+import AICopilotPage from "./pages/AICopilotPage";
 
 import {
   getThreats,
   getStatistics
 } from "./services/api";
+import { formatAttackType } from "./data/attackTypes";
 
 
 /* =========================================================
@@ -400,6 +409,21 @@ function Dashboard() {
 
       </div>
 
+      <div className="dashboard-action-bar">
+        <Link className="primary-action" to="/security-test">
+          <Plus size={17} />
+          NEW SECURITY TEST
+        </Link>
+        <Link className="secondary-action" to="/ai-copilot">
+          <Bot size={17} />
+          ASK SECURITY AI
+        </Link>
+        <Link className="secondary-action" to="/threats">
+          <Eye size={17} />
+          VIEW THREATS
+        </Link>
+      </div>
+
 
       {/* =================================================
           REAL STATISTICS
@@ -505,6 +529,36 @@ function Dashboard() {
           riskDistribution
         }
       />
+
+      <div className="dashboard-soc-grid">
+        <section className="information-card">
+          <div className="section-header">
+            <h2>Recent Critical Threats</h2>
+            <Link className="table-action-link" to="/alerts">VIEW ALERTS</Link>
+          </div>
+          {threats.filter((threat) => threat.severity === "CRITICAL").slice(0, 4).length === 0 ? (
+            <p className="placeholder-text">No critical threats found.</p>
+          ) : (
+            threats.filter((threat) => threat.severity === "CRITICAL").slice(0, 4).map((threat) => (
+              <Link className="mini-threat-row" key={threat.id} to={`/threat/${threat.id}`}>
+                <span>{formatAttackType(threat.attackType)}</span>
+                <strong>{threat.riskScore}</strong>
+              </Link>
+            ))
+          )}
+        </section>
+
+        <section className="information-card">
+          <div className="section-header">
+            <h2>Security Activity</h2>
+            <span>Live</span>
+          </div>
+          <div className="information-row"><span>Current Risk Level</span><strong>{criticalThreats > 0 ? "CRITICAL" : threatsDetected > 0 ? "ELEVATED" : "LOW"}</strong></div>
+          <div className="information-row"><span>Detection Status</span><strong>ACTIVE</strong></div>
+          <div className="information-row"><span>Blocked Threats</span><strong>{blockedThreats}</strong></div>
+          <div className="information-row"><span>Analyzed Requests</span><strong>{totalRequests}</strong></div>
+        </section>
+      </div>
 
 
       {/* =================================================
@@ -1972,7 +2026,9 @@ function AnalyticsPage() {
 ========================================================= */
 
 function Layout({
-  children
+  children,
+  user,
+  onLogout
 }) {
 
   return (
@@ -1983,7 +2039,10 @@ function Layout({
 
       <div className="main-content">
 
-        <Navbar />
+        <Navbar
+          user={user}
+          onLogout={onLogout}
+        />
 
         {children}
 
@@ -2000,22 +2059,46 @@ function Layout({
 ========================================================= */
 
 function App() {
+  const [user, setUser] = useState(() => {
+    const storedUser = localStorage.getItem("threatguardUser");
+    return storedUser ? JSON.parse(storedUser) : null;
+  });
+
+  const login = (nextUser) => {
+    localStorage.setItem("threatguardUser", JSON.stringify(nextUser));
+    setUser(nextUser);
+  };
+
+  const logout = () => {
+    localStorage.removeItem("threatguardUser");
+    setUser(null);
+  };
+
+  const shell = (children) => (
+    <Layout user={user} onLogout={logout}>
+      {children}
+    </Layout>
+  );
 
   return (
 
     <BrowserRouter>
 
       <Routes>
+        {!user && (
+          <Route
+            path="*"
+            element={<LoginPage onLogin={login} />}
+          />
+        )}
+
+        {user && (
+          <>
 
         <Route
           path="/"
           element={
-
-            <Layout>
-
-              <Dashboard />
-
-            </Layout>
+            shell(<Dashboard />)
 
           }
         />
@@ -2024,12 +2107,7 @@ function App() {
         <Route
           path="/threats"
           element={
-
-            <Layout>
-
-              <ThreatsPage />
-
-            </Layout>
+            shell(<ThreatsPage />)
 
           }
         />
@@ -2038,12 +2116,7 @@ function App() {
         <Route
           path="/analytics"
           element={
-
-            <Layout>
-
-              <AnalyticsPage />
-
-            </Layout>
+            shell(<AnalyticsPage />)
 
           }
         />
@@ -2052,12 +2125,7 @@ function App() {
         <Route
           path="/threat/:id"
           element={
-
-            <Layout>
-
-              <ThreatDetails />
-
-            </Layout>
+            shell(<ThreatDetails />)
 
           }
         />
@@ -2066,12 +2134,7 @@ function App() {
         <Route
           path="/attack-simulation"
           element={
-
-            <Layout>
-
-              <AttackSimulation />
-
-            </Layout>
+            shell(<AttackSimulation />)
 
           }
         />
@@ -2080,15 +2143,33 @@ function App() {
         <Route
           path="/enterprise"
           element={
-
-            <Layout>
-
-              <EnterpriseDashboard />
-
-            </Layout>
+            shell(<EnterpriseDashboard />)
 
           }
         />
+
+        <Route
+          path="/security-test"
+          element={shell(<NewSecurityTest />)}
+        />
+
+        <Route
+          path="/alerts"
+          element={shell(<AlertsPage />)}
+        />
+
+        <Route
+          path="/api-inventory"
+          element={shell(<ApiInventory />)}
+        />
+
+        <Route
+          path="/ai-copilot"
+          element={shell(<AICopilotPage />)}
+        />
+
+          </>
+        )}
 
       </Routes>
 
