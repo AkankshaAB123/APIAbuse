@@ -4052,7 +4052,7 @@ tbody tr:hover {
 }
 /* =========================================================
    API SECURITY CHECK FORM
-========================================================= */
+
 
 .form-group {
   margin-bottom: 18px;
@@ -4187,6 +4187,458 @@ tbody tr:hover {
   }
 }
 
+/* =========================================================
+   THREATGUARD PRODUCT UPGRADES
+========================================================= */
+
+.sidebar-logo span {
+  display: block;
+  color: #7d89aa;
+  font-size: 12px;
+  margin-top: 6px;
+}
+
+.sidebar-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sidebar-section-title {
+  color: #5f6b8d;
+  font-size: 11px;
+  font-weight: 700;
+  margin: 12px 8px 4px;
+}
+
+.sidebar-menu a.active {
+  background: rgba(59, 130, 246, 0.16);
+  color: #ffffff;
+  border-color: #385083;
+}
+
+.navbar-title span {
+  display: block;
+  color: #7480a1;
+  font-size: 12px;
+  font-weight: 600;
+  margin-top: 3px;
+}
+
+.profile-menu {
+  position: relative;
+}
+
+.profile-trigger,
+.profile-dropdown button,
+.primary-action,
+.secondary-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.profile-trigger {
+  border: 1px solid #2c395f;
+  background: #11182c;
+  color: #eef2ff;
+  border-radius: 8px;
+  padding: 8px 10px;
+  cursor: pointer;
+}
+
+.profile-trigger span {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1.2;
+}
+
+.profile-trigger small {
+  color: #34d399;
+  font-size: 11px;
+}
+
+.profile-trigger em {
+  color: #93c5fd;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.profile-dropdown {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 10px);
+  min-width: 190px;
+  padding: 8px;
+  background: #0f1629;
+  border: 1px solid #2c395f;
+  border-radius: 8px;
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.35);
+  z-index: 20;
+}
+
+.profile-dropdown button {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: #cbd5e1;
+  padding: 10px;
+  justify-content: flex-start;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.profile-dropdown button:hover {
+  background: #18213b;
+  color: #ffffff;
+}
+
+.login-page {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(360px, 440px);
+  gap: 48px;
+  align-items: center;
+  padding: 48px;
+  background:
+    radial-gradient(circle at 20% 20%, rgba(59, 130, 246, 0.2), transparent 30%),
+    linear-gradient(145deg, #050814, #0b1224 52%, #060914);
+}
+
+.login-hero h1 {
+  font-size: 58px;
+  line-height: 1.02;
+  max-width: 720px;
+  margin: 14px 0;
+}
+
+.login-hero p,
+.login-panel p,
+.security-alert p,
+.copilot-empty p,
+.state-panel p {
+  color: #8f9bb9;
+}
+
+.demo-account-grid {
+  display: grid;
+  gap: 10px;
+  margin: 14px 0;
+}
+
+.access-restricted {
+  max-width: 620px;
+  margin: 70px auto;
+}
+
+.login-brand-mark {
+  width: 68px;
+  height: 68px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(96, 165, 250, 0.42);
+  border-radius: 14px;
+  color: #60a5fa;
+  background: rgba(96, 165, 250, 0.1);
+}
+
+.login-panel,
+.security-test-form,
+.test-result-panel,
+.state-panel {
+  background: linear-gradient(145deg, #131a31, #0d1326);
+  border: 1px solid #252f51;
+  border-radius: 12px;
+  padding: 26px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.3);
+}
+
+.login-panel h2 {
+  font-size: 28px;
+  margin-bottom: 8px;
+}
+
+.login-panel label,
+.security-test-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: #aab4d0;
+  font-size: 13px;
+  margin-bottom: 16px;
+}
+
+.login-panel input,
+.security-test-form input,
+.security-test-form select,
+.security-test-form textarea,
+.copilot-form input {
+  width: 100%;
+  border: 1px solid #303b5d;
+  background: #0a0f1e;
+  color: #eef2ff;
+  border-radius: 8px;
+  padding: 12px;
+  outline: none;
+}
+
+.security-test-form textarea {
+  resize: vertical;
+  font-family: Consolas, monospace;
+}
+
+.primary-action,
+.secondary-action,
+.view-threat-button,
+.table-action-link {
+  text-decoration: none;
+  border-radius: 8px;
+  min-height: 42px;
+  padding: 0 16px;
+  font-weight: 800;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.primary-action {
+  border: 1px solid #3b82f6;
+  background: #2563eb;
+  color: #ffffff;
+}
+
+.secondary-action {
+  border: 1px solid #303b5d;
+  background: #11182c;
+  color: #cbd5e1;
+}
+
+.primary-action:disabled {
+  opacity: 0.65;
+  cursor: progress;
+}
+
+.dashboard-action-bar {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 0 0 26px;
+}
+
+.dashboard-soc-grid,
+.test-console-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 24px;
+  margin-bottom: 26px;
+}
+
+.mini-threat-row,
+.security-alert,
+.inventory-row {
+  display: grid;
+  align-items: center;
+  gap: 14px;
+  color: #dce5ff;
+  text-decoration: none;
+  border-bottom: 1px solid #1c2540;
+  padding: 14px 0;
+}
+
+.mini-threat-row {
+  grid-template-columns: 1fr auto;
+}
+
+.security-alert {
+  grid-template-columns: auto 1fr auto auto;
+  background: #10162a;
+  border: 1px solid #252f51;
+  border-radius: 10px;
+  padding: 16px;
+  margin-bottom: 12px;
+}
+
+.alert-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(239, 68, 68, 0.12);
+  color: #f87171;
+}
+
+.alert-icon.high {
+  background: rgba(249, 115, 22, 0.14);
+  color: #fb923c;
+}
+
+.alert-time {
+  display: inline-flex;
+  gap: 7px;
+  align-items: center;
+  color: #8f9bb9;
+  font-size: 12px;
+}
+
+.inventory-table {
+  background: #10162a;
+  border: 1px solid #252f51;
+  border-radius: 12px;
+  padding: 8px 18px;
+}
+
+.inventory-row {
+  grid-template-columns: 1.2fr 0.45fr 0.6fr 1.4fr 0.6fr;
+}
+
+.inventory-head {
+  color: #7480a1;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.posture-status {
+  justify-self: start;
+  border-radius: 6px;
+  padding: 6px 9px;
+  background: rgba(16, 185, 129, 0.12);
+  color: #34d399;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.posture-status.attention {
+  background: rgba(239, 68, 68, 0.13);
+  color: #f87171;
+}
+
+.posture-status.watch {
+  background: rgba(245, 158, 11, 0.13);
+  color: #fbbf24;
+}
+
+.state-panel {
+  text-align: center;
+  color: #e5e7eb;
+  margin: 24px 0;
+}
+
+.state-error {
+  border-color: rgba(239, 68, 68, 0.35);
+}
+
+.state-spinner {
+  width: 30px;
+  height: 30px;
+  margin: 0 auto 14px;
+  border: 3px solid #25304f;
+  border-top-color: #60a5fa;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.result-stack {
+  display: grid;
+  gap: 14px;
+}
+
+.result-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  border-bottom: 1px solid #1c2540;
+  padding-bottom: 12px;
+}
+
+.detector-grid,
+.ai-section-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.detector-card,
+.copilot-message {
+  background: #0b1020;
+  border: 1px solid #252f51;
+  border-radius: 10px;
+  padding: 14px;
+}
+
+.detector-card.detected {
+  border-color: rgba(239, 68, 68, 0.42);
+}
+
+.detector-card span {
+  display: block;
+  color: #8f9bb9;
+  font-size: 12px;
+  margin: 6px 0;
+}
+
+.timeline-list {
+  display: grid;
+  gap: 10px;
+}
+
+.timeline-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #cbd5e1;
+}
+
+.suggested-question-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 16px 0;
+}
+
+.suggested-question-list button {
+  border: 1px solid #303b5d;
+  background: #0a0f1e;
+  color: #cbd5e1;
+  border-radius: 999px;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.copilot-form {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+}
+
+.copilot-thread {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.copilot-empty {
+  text-align: center;
+}
+
+.ai-badge.muted {
+  background: rgba(148, 163, 184, 0.12);
+  color: #cbd5e1;
+  border-color: rgba(148, 163, 184, 0.25);
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 
 /* =========================================================
    RESPONSIVE API SECURITY PAGE
@@ -4206,4 +4658,41 @@ tbody tr:hover {
     grid-template-columns: 1fr !important;
   }
 
+}
+
+@media (max-width: 980px) {
+  .app,
+  .login-page,
+  .dashboard-soc-grid,
+  .test-console-grid,
+  .analytics-summary,
+  .stats-grid,
+  .analytics-bottom-grid,
+  .enterprise-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .app {
+    display: block;
+  }
+
+  .sidebar {
+    width: 100%;
+    min-height: auto;
+  }
+
+  .sidebar-menu {
+    flex-direction: row;
+    overflow-x: auto;
+    align-items: flex-start;
+  }
+
+  .sidebar-section {
+    min-width: 180px;
+  }
+
+  .security-alert,
+  .inventory-row {
+    grid-template-columns: 1fr;
+  }
 }

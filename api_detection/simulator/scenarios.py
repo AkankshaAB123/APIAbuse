@@ -4,6 +4,7 @@ from dataclasses import replace
 
 from ..contracts import (
     ApiSecurityEvent,
+    EndpointInfo,
     IdentityInfo,
     NetworkInfo,
     RequestInfo,
@@ -294,5 +295,286 @@ def endpoint_enumeration_event(
         response=ResponseInfo(
             status_code=404,
             latency_ms=40,
+        ),
+    )
+def ddos_event(
+    event_id: str = "evt-ddos-001",
+    source_ip: str = "192.0.2.5",
+) -> ApiSecurityEvent:
+    """
+    Synthetic event used with recent_events to simulate
+    distributed high-volume traffic.
+
+    This function creates telemetry only. It does not
+    generate real network traffic.
+    """
+
+    return ApiSecurityEvent(
+        event_id=event_id,
+        timestamp="2026-09-01T10:00:00Z",
+        network=NetworkInfo(
+            source_ip=source_ip,
+            destination_ip="198.51.100.10",
+            destination_port=443,
+            protocol="TCP",
+            bytes=512,
+            packets=4,
+            connection_status="success",
+        ),
+        identity=IdentityInfo(
+            user_id="synthetic-user",
+            session_id="synthetic-ddos-session",
+            roles=("customer",),
+            is_authenticated=True,
+        ),
+        request=RequestInfo(
+            method="GET",
+            endpoint="/api/demo",
+        ),
+        response=ResponseInfo(
+            status_code=200,
+            latency_ms=25,
+        ),
+    )
+
+
+def dos_flooding_event(
+    event_id: str = "evt-dos-flooding-001",
+) -> ApiSecurityEvent:
+    """
+    Synthetic event used with repeated recent_events to simulate
+    high-volume traffic from one source to one destination.
+
+    This function creates telemetry only.
+    """
+
+    return ApiSecurityEvent(
+        event_id=event_id,
+        timestamp="2026-09-01T10:00:00Z",
+        network=NetworkInfo(
+            source_ip="192.0.2.20",
+            destination_ip="198.51.100.20",
+            destination_port=443,
+            protocol="TCP",
+            bytes=512,
+            packets=4,
+            connection_status="success",
+        ),
+        identity=IdentityInfo(
+            user_id="synthetic-user",
+            session_id="synthetic-dos-session",
+            roles=("customer",),
+            is_authenticated=True,
+        ),
+        request=RequestInfo(
+            method="GET",
+            endpoint="/api/demo",
+        ),
+        response=ResponseInfo(
+            status_code=200,
+            latency_ms=20,
+        ),
+    )
+
+
+def port_scanning_event(
+    event_id: str = "evt-port-scan-001",
+    destination_port: int = 1000,
+) -> ApiSecurityEvent:
+    """
+    Synthetic network telemetry used with recent_events to simulate
+    contact with many destination ports.
+
+    This function does not perform a real port scan.
+    """
+
+    return ApiSecurityEvent(
+        event_id=event_id,
+        timestamp="2026-09-01T10:00:00Z",
+        network=NetworkInfo(
+            source_ip="192.0.2.30",
+            destination_ip="198.51.100.30",
+            destination_port=destination_port,
+            protocol="TCP",
+            bytes=64,
+            packets=1,
+            connection_status="rejected",
+        ),
+        identity=IdentityInfo(
+            user_id="synthetic-user",
+            session_id="synthetic-port-scan-session",
+            roles=("customer",),
+            is_authenticated=True,
+        ),
+        request=RequestInfo(
+            method="GET",
+            endpoint="/api/network-probe",
+        ),
+        response=ResponseInfo(
+            status_code=403,
+            latency_ms=10,
+        ),
+    )
+
+
+def network_brute_force_event(
+    event_id: str = "evt-network-brute-force-001",
+) -> ApiSecurityEvent:
+    """
+    Synthetic failed network connection telemetry used with
+    recent_events to simulate repeated connection failures.
+
+    This function does not perform real authentication attempts.
+    """
+
+    return ApiSecurityEvent(
+        event_id=event_id,
+        timestamp="2026-09-01T10:00:00Z",
+        network=NetworkInfo(
+            source_ip="192.0.2.40",
+            destination_ip="198.51.100.40",
+            destination_port=22,
+            protocol="TCP",
+            bytes=64,
+            packets=1,
+            connection_status="failed",
+        ),
+        identity=IdentityInfo(
+            user_id="synthetic-user",
+            session_id="synthetic-brute-force-session",
+            roles=("customer",),
+            is_authenticated=False,
+        ),
+        request=RequestInfo(
+            method="GET",
+            endpoint="/api/network-auth",
+        ),
+        response=ResponseInfo(
+            status_code=401,
+            latency_ms=15,
+        ),
+    )
+
+
+def keylogging_event(
+    event_id: str = "evt-keylogging-001",
+) -> ApiSecurityEvent:
+    """
+    Synthetic endpoint telemetry indicating that a keyboard hook
+    was observed.
+
+    This does not install or interact with a real keylogger.
+    """
+
+    event = normal_event(event_id)
+
+    return replace(
+        event,
+        endpoint=EndpointInfo(
+            event_type="keyboard_hook_observed",
+            hostname="demo-host-01",
+            username="user_17",
+            process_name="demo-input-service.exe",
+            process_id=4120,
+            parent_process="explorer.exe",
+            executable_path="C:\\Demo\\demo-input-service.exe",
+            command_line="demo-input-service.exe",
+            privilege_level="user",
+            keyboard_hook=True,
+            network_connection=False,
+            elevated=False,
+        ),
+    )
+
+
+def suspicious_process_execution_event(
+    event_id: str = "evt-suspicious-process-001",
+) -> ApiSecurityEvent:
+    """
+    Synthetic endpoint telemetry indicating suspicious process
+    execution.
+
+    No process is actually launched.
+    """
+
+    event = normal_event(event_id)
+
+    return replace(
+        event,
+        endpoint=EndpointInfo(
+            event_type="process_execution",
+            hostname="demo-host-02",
+            username="user_17",
+            process_name="powershell.exe",
+            process_id=4180,
+            parent_process="explorer.exe",
+            executable_path="C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+            command_line="powershell.exe -EncodedCommand SYNTHETIC_DEMO",
+            privilege_level="user",
+            keyboard_hook=False,
+            network_connection=False,
+            elevated=False,
+        ),
+    )
+
+
+def reverse_shell_event(
+    event_id: str = "evt-reverse-shell-001",
+) -> ApiSecurityEvent:
+    """
+    Synthetic endpoint telemetry containing reverse-shell-like
+    signals.
+
+    No shell or network connection is actually created.
+    """
+
+    event = normal_event(event_id)
+
+    return replace(
+        event,
+        endpoint=EndpointInfo(
+            event_type="process_network_activity",
+            hostname="demo-host-03",
+            username="user_17",
+            process_name="bash",
+            process_id=4250,
+            parent_process="systemd",
+            executable_path="/bin/bash",
+            command_line="bash -i SYNTHETIC_DEMO",
+            privilege_level="user",
+            keyboard_hook=False,
+            network_connection=True,
+            elevated=False,
+        ),
+    )
+
+
+def endpoint_privilege_escalation_event(
+    event_id: str = "evt-endpoint-privilege-escalation-001",
+) -> ApiSecurityEvent:
+    """
+    Synthetic endpoint telemetry containing privilege-escalation
+    indicators.
+
+    No privileges are actually changed and no command is executed.
+    """
+
+    event = normal_event(event_id)
+
+    return replace(
+        event,
+        endpoint=EndpointInfo(
+            event_type="privilege_change",
+            hostname="demo-host-04",
+            username="user_17",
+            process_name="demo-admin-helper.exe",
+            process_id=4320,
+            parent_process="explorer.exe",
+            executable_path="C:\\Demo\\demo-admin-helper.exe",
+            command_line="sudo SYNTHETIC_DEMO",
+            privilege_level="root",
+            keyboard_hook=False,
+            network_connection=False,
+            elevated=True,
         ),
     )

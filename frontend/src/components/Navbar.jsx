@@ -1,12 +1,18 @@
-function Navbar() {
+import ProfileMenu from "./ProfileMenu";
+
+function Navbar({ user, onLogout }) {
   return (
     <header className="navbar">
       <div className="navbar-title">
-        AI-Based API Abuse Threat Detection System
+        ThreatGuard
+        <span>AI-Powered API Security</span>
       </div>
 
       <div className="navbar-user">
-        <span>Admin</span>
+        <ProfileMenu
+          user={user}
+          onLogout={onLogout}
+        />
       </div>
     </header>
   );

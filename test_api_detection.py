@@ -1,3 +1,4 @@
+from api_detection.backend_adapter import run_for_backend
 event = {
     "schema_version": "1.0",
     "event_id": "evt-privilege-001",

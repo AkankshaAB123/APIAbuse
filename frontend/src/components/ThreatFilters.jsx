@@ -1,3 +1,5 @@
+import { ATTACK_FILTER_OPTIONS } from "../data/attackTypes";
+
 function ThreatFilters({
   attackType,
   severity,
@@ -18,11 +20,11 @@ function ThreatFilters({
           onChange={(e) => onAttackTypeChange(e.target.value)}
         >
           <option value="ALL">All Attacks</option>
-          <option value="DoS">DoS</option>
-          <option value="Port Scan">Port Scan</option>
-          <option value="Brute Force">Brute Force</option>
-          <option value="API Abuse">API Abuse</option>
-          <option value="Normal">Normal</option>
+          {ATTACK_FILTER_OPTIONS.map((type) => (
+            <option key={type.value} value={type.value}>
+              {type.label}
+            </option>
+          ))}
         </select>
       </div>
 
@@ -51,7 +53,8 @@ function ThreatFilters({
           <option value="ALL">All Actions</option>
           <option value="ALLOW">Allow</option>
           <option value="ALERT">Alert</option>
-          <option value="RATE LIMIT">Rate Limit</option>
+          <option value="RATE_LIMIT">Rate Limit</option>
+          <option value="MONITOR">Monitor</option>
           <option value="BLOCK">Block</option>
         </select>
       </div>

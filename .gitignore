@@ -8,7 +8,6 @@ __pycache__/
 *.pyo
 
 # RAG generated files
-rag/embeddings/data/
 
 # Virtual environments
 venv/
@@ -29,3 +28,14 @@ build/
 # OS
 .DS_Store
 Thumbs.db
+
+# Local Python virtual environment
+.venv310/
+
+# ML datasets and local test artifacts
+ml/datasets/
+ml_test_features.json
+
+# Temporary deployment test environment
+.deploy_test/
+

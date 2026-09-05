@@ -6,16 +6,26 @@ from collections.abc import Sequence
 
 from .contracts import ApiSecurityEvent, DetectorResult
 
-from .detectors import detect_account_takeover
-from .detectors import detect_bola_idor
-from .detectors import detect_broken_function_level_authorization
-from .detectors import detect_business_flow_abuse
-from .detectors import detect_credential_attacks
-from .detectors import detect_endpoint_enumeration
-from .detectors import detect_resource_exhaustion
-from .detectors import detect_security_misconfiguration
-from .detectors import detect_sql_injection
-from .detectors import detect_ssrf
+from api_detection.detectors import (
+    detect_account_takeover,
+    detect_bola_idor,
+    detect_broken_function_level_authorization,
+    detect_business_flow_abuse,
+    detect_credential_attacks,
+    detect_ddos,
+    detect_dos_flooding,
+    detect_endpoint_enumeration,
+    detect_keylogging,
+    detect_network_brute_force,
+    detect_port_scanning,
+    detect_privilege_escalation,
+    detect_resource_exhaustion,
+    detect_reverse_shell,
+    detect_security_misconfiguration,
+    detect_sql_injection,
+    detect_ssrf,
+    detect_suspicious_process_execution,
+)
 
 
 def run_all_detectors(
@@ -28,7 +38,14 @@ def run_all_detectors(
     """
 
     return [
-        detect_bola_idor(event, recent_events),
+        # --------------------------------------------------
+        # API detectors
+        # --------------------------------------------------
+
+        detect_bola_idor(
+            event,
+            recent_events,
+        ),
 
         detect_broken_function_level_authorization(
             event,
@@ -71,6 +88,54 @@ def run_all_detectors(
         ),
 
         detect_security_misconfiguration(
+            event,
+            recent_events,
+        ),
+
+        # --------------------------------------------------
+        # Network detectors
+        # --------------------------------------------------
+
+        detect_ddos(
+            event,
+            recent_events,
+        ),
+
+        detect_dos_flooding(
+            event,
+            recent_events,
+        ),
+
+        detect_port_scanning(
+            event,
+            recent_events,
+        ),
+
+        detect_network_brute_force(
+            event,
+            recent_events,
+        ),
+
+        # --------------------------------------------------
+        # Endpoint detectors
+        # --------------------------------------------------
+
+        detect_keylogging(
+            event,
+            recent_events,
+        ),
+
+        detect_suspicious_process_execution(
+            event,
+            recent_events,
+        ),
+
+        detect_reverse_shell(
+            event,
+            recent_events,
+        ),
+
+        detect_privilege_escalation(
             event,
             recent_events,
         ),

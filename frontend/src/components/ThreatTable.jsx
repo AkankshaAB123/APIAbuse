@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import RiskBadge from "./RiskBadge";
+import { formatAttackType } from "../data/attackTypes";
 
 function ThreatTable({ threats }) {
   return (
@@ -24,6 +25,7 @@ function ThreatTable({ threats }) {
               <th>Attack Type</th>
               <th>Risk</th>
               <th>Action</th>
+              <th>Investigate</th>
             </tr>
           </thead>
 
@@ -32,7 +34,7 @@ function ThreatTable({ threats }) {
             {threats.length === 0 ? (
 
               <tr>
-                <td colSpan="5" className="no-threats">
+                <td colSpan="6" className="no-threats">
                   No threats found.
                 </td>
               </tr>
@@ -55,7 +57,7 @@ function ThreatTable({ threats }) {
                       to={`/threat/${threat.id}`}
                       className="threat-link"
                     >
-                      {threat.attackType}
+                      {formatAttackType(threat.attackType)}
                     </Link>
                   </td>
 
@@ -70,6 +72,15 @@ function ThreatTable({ threats }) {
                     <span className="action">
                       {threat.action}
                     </span>
+                  </td>
+
+                  <td>
+                    <Link
+                      to={`/threat/${threat.id}`}
+                      className="table-action-link"
+                    >
+                      VIEW
+                    </Link>
                   </td>
 
                 </tr>
