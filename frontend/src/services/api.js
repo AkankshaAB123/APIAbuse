@@ -66,7 +66,19 @@ export async function getThreats() {
 
 }
 
-
+export async function checkAPISecurity(
+  securityRequest
+) {
+  return apiRequest(
+    "/security-check",
+    {
+      method: "POST",
+      body: JSON.stringify(
+        securityRequest
+      )
+    }
+  );
+}
 /* =========================
    GET SINGLE THREAT
 ========================= */

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-
+import APISecurityCheck from "./pages/APISecurityCheck";
 import {
   BrowserRouter,
   Routes,
@@ -2076,7 +2076,6 @@ function App() {
           }
         />
 
-
         <Route
           path="/enterprise"
           element={
@@ -2089,7 +2088,18 @@ function App() {
 
           }
         />
+<Route
+  path="/api-security-check"
+  element={
 
+    <Layout>
+
+      <APISecurityCheck />
+
+    </Layout>
+
+  }
+/>
       </Routes>
 
     </BrowserRouter>
