@@ -24,3 +24,4 @@ class DetectorResult(BaseModel):
     evidence: list[DetectionEvidence] = Field(default_factory=list)
     source: str = "api_detector"
     metadata: DetectorMetadata
+    domain: str = "API"
