@@ -3,6 +3,7 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from backend.schemas.detector_result import DetectorResult
+from backend.schemas.impact_assessment import ImpactAssessment
 from backend.schemas.ml_result import MLResult
 from backend.schemas.risk_assessment import RiskAssessment
 
@@ -23,6 +24,8 @@ class ProcessingResult(BaseModel):
     ml_result: MLResult | None = None
 
     risk_assessment: RiskAssessment | None = None
+
+    impact: ImpactAssessment | None = None
 
     mitigation_action: str = "ALLOW"
 

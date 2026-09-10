@@ -23,8 +23,13 @@ from backend.schemas.api_security_event import (
     ResourceInfo,
     ResponseInfo,
 )
+from backend.schemas.detector_result import DetectionEvidence, DetectorMetadata, DetectorResult
+from backend.schemas.impact_assessment import ImpactAssessment
+from backend.schemas.risk_assessment import RiskAssessment
 from backend.services.event_processor import EventProcessor
 from backend.services.detection_service import DetectionService
+from backend.services.impact_service import ImpactService
+from backend.services.mitigation_service import MitigationService
 from api_detection.backend_adapter import adapt_backend_event, run_for_backend
 from api_detection.contracts import DetectorDomain
 from api_detection.detectors import detect_suspicious_process_execution
@@ -66,6 +71,12 @@ CLEANUP_EVENT_IDS = [
     "pytest-persistence-001",
     "pytest-error-001",
     "evt-suspicious-process-001",
+    "pytest-fin-001",
+    "pytest-cred-001",
+    "pytest-ato-001",
+    "pytest-url-001",
+    "test-ep-preserve-001",
+    "test-net-preserve-001",
 ]
 
 
@@ -115,6 +126,11 @@ def test_sql_injection_triggers_block(clean_test_events=None):
     assert result.risk_assessment.risk_level == "HIGH"
     assert result.risk_assessment.threat_detected is True
 
+    assert result.impact is not None
+    assert result.impact.impact_identified is True
+    assert "data exposure" in result.impact.categories
+    assert result.impact.primary_impact == "data exposure"
+
     assert result.mitigation_action == "RATE_LIMIT"
 
 
@@ -134,6 +150,12 @@ def test_benign_event_allows_request(clean_test_events=None):
     assert result.risk_assessment.risk_score == 0.0
     assert result.risk_assessment.risk_level == "LOW"
     assert result.risk_assessment.threat_detected is False
+
+    assert result.impact is not None
+    assert result.impact.impact_identified is False
+    assert result.impact.categories == []
+    assert result.impact.primary_impact is None
+    assert result.impact.severity == "LOW"
 
     assert result.mitigation_action == "ALLOW"
 
@@ -172,6 +194,10 @@ def test_processing_result_is_persisted(clean_test_events=None):
     assert "processing" in stored_event
     assert len(stored_event["processing"]["detector_results"]) == 18
     assert stored_event["processing"]["risk_assessment"]["risk_level"] == "HIGH"
+    assert "impact" in stored_event["processing"]
+    assert stored_event["processing"]["impact"] is not None
+    assert stored_event["processing"]["impact"]["impact_identified"] is True
+    assert "data exposure" in stored_event["processing"]["impact"]["categories"]
     assert stored_event["processing"]["mitigation_action"] == "RATE_LIMIT"
 
 
@@ -342,11 +368,196 @@ def test_post_events_suspicious_process_execution_full_pipeline():
     assert risk is not None
     assert risk["threat_detected"] is True
     assert "SUSPICIOUS_PROCESS_EXECUTION" in risk["attack_types"]
-    assert data["mitigation_action"] in ["BLOCK", "RATE_LIMIT", "MONITOR"]
+    assert data["impact"] is not None
+    assert data["impact"]["impact_identified"] is True
+    assert data["impact"]["primary_impact"] == "endpoint compromise"
+    assert "endpoint compromise" in data["impact"]["categories"]
+    assert data["mitigation_action"] == "QUARANTINE"
+
+
+# ==============================================================
+# M3-02 IMPACT ENGINE & ADVANCED MITIGATION TESTS
+# ==============================================================
+
+def test_credential_compromise_impact_assessment():
+    """Verify ImpactService assigns credential compromise for credential attacks."""
+    event = build_event("pytest-cred-001", "admin")
+    detector_result = DetectorResult(
+        event_id=event.event_id,
+        detector_id="credential_attack",
+        detected=True,
+        attack_type="CREDENTIAL_ATTACK",
+        confidence=0.95,
+        severity="HIGH",
+        evidence=[DetectionEvidence(code="CREDENTIAL_STUFFING", message="Stuffing detected")],
+        metadata=DetectorMetadata(),
+        domain="API",
+    )
+    risk = RiskAssessment(
+        event_id=event.event_id,
+        risk_score=75.0,
+        risk_level="HIGH",
+        threat_detected=True,
+        attack_types=["CREDENTIAL_ATTACK"],
+    )
+
+    impact_service = ImpactService()
+    impact = impact_service.assess(event, detector_results=[detector_result], risk_assessment=risk)
+
+    assert impact.impact_identified is True
+    assert "credential compromise" in impact.categories
+    assert impact.primary_impact == "credential compromise"
+    assert impact.severity == "HIGH"
+
+
+def test_account_takeover_impact_assessment():
+    """Verify ImpactService assigns account takeover for account takeover attacks."""
+    event = build_event("pytest-ato-001", "victim")
+    detector_result = DetectorResult(
+        event_id=event.event_id,
+        detector_id="account_takeover",
+        detected=True,
+        attack_type="ACCOUNT_TAKEOVER",
+        confidence=0.92,
+        severity="CRITICAL",
+        evidence=[DetectionEvidence(code="ACCOUNT_TAKEOVER", message="Account takeover detected")],
+        metadata=DetectorMetadata(),
+        domain="API",
+    )
+    risk = RiskAssessment(
+        event_id=event.event_id,
+        risk_score=92.0,
+        risk_level="CRITICAL",
+        threat_detected=True,
+        attack_types=["ACCOUNT_TAKEOVER"],
+    )
+
+    impact_service = ImpactService()
+    impact = impact_service.assess(event, detector_results=[detector_result], risk_assessment=risk)
+
+    assert impact.impact_identified is True
+    assert "account takeover" in impact.categories
+    assert impact.primary_impact == "account takeover"
+    assert impact.severity == "CRITICAL"
+
+
+def test_endpoint_compromise_quarantine_mitigation():
+    """Verify MitigationService assigns QUARANTINE for endpoint compromise."""
+    mitigation_service = MitigationService()
+    impact = ImpactAssessment(
+        impact_identified=True,
+        categories=["endpoint compromise"],
+        primary_impact="endpoint compromise",
+        severity="HIGH",
+    )
+    risk = RiskAssessment(
+        event_id="test-ep",
+        risk_score=80.0,
+        risk_level="HIGH",
+        threat_detected=True,
+        attack_types=["SUSPICIOUS_PROCESS_EXECUTION"],
+    )
+
+    action = mitigation_service.decide_action(risk_assessment=risk, impact_assessment=impact)
+    assert action == "QUARANTINE"
+
+
+def test_financial_loss_transaction_block_mitigation():
+    """Verify MitigationService assigns TRANSACTION_BLOCK for financial loss."""
+    mitigation_service = MitigationService()
+    impact = ImpactAssessment(
+        impact_identified=True,
+        categories=["financial loss"],
+        primary_impact="financial loss",
+        severity="HIGH",
+    )
+    risk = RiskAssessment(
+        event_id="test-fin",
+        risk_score=80.0,
+        risk_level="HIGH",
+        threat_detected=True,
+        attack_types=["BUSINESS_FLOW_ABUSE"],
+    )
+
+    action = mitigation_service.decide_action(risk_assessment=risk, impact_assessment=impact)
+    assert action == "TRANSACTION_BLOCK"
+
+
+def test_url_block_mitigation():
+    """Verify MitigationService assigns URL_BLOCK for phishing/suspicious URLs."""
+    mitigation_service = MitigationService()
+    impact = ImpactAssessment(
+        impact_identified=True,
+        categories=["malicious url"],
+        primary_impact="malicious url",
+        severity="HIGH",
+    )
+    risk = RiskAssessment(
+        event_id="test-url",
+        risk_score=75.0,
+        risk_level="HIGH",
+        threat_detected=True,
+        reasons=["Suspicious phishing url detected in request query"],
+    )
+
+    action = mitigation_service.decide_action(risk_assessment=risk, impact_assessment=impact)
+    assert action == "URL_BLOCK"
+
+
+def test_end_to_end_financial_loss_pipeline(clean_test_events=None):
+    """
+    Verify full pipeline for financial loss:
+    Event on /api/orders/checkout with attack -> primary_impact="financial loss" -> TRANSACTION_BLOCK -> MongoDB
+    """
+    if clean_test_events is None or callable(clean_test_events):
+        do_cleanup()
+    processor = EventProcessor()
+
+    event = ApiSecurityEvent(
+        event_id="pytest-fin-001",
+        timestamp=datetime.now(timezone.utc),
+        network=NetworkInfo(
+            source_ip="192.168.1.150",
+            user_agent="financial-client",
+        ),
+        identity=IdentityInfo(
+            user_id="user-order-1",
+            session_id="session-order-1",
+            roles=["customer"],
+            is_authenticated=True,
+        ),
+        request=RequestInfo(
+            method="POST",
+            endpoint="/api/orders/checkout",
+            query_params={"discount": "UNION SELECT"},
+        ),
+        response=ResponseInfo(
+            status_code=200,
+            latency_ms=45,
+        ),
+        resource=ResourceInfo(
+            resource_type="order",
+        ),
+    )
+
+    result = processor.process(event)
+
+    assert result.impact is not None
+    assert result.impact.impact_identified is True
+    assert "financial loss" in result.impact.categories
+    assert result.impact.primary_impact == "financial loss"
+    assert result.mitigation_action == "TRANSACTION_BLOCK"
+
+    # Verify MongoDB persistence
+    stored_event = events_collection.find_one({"event_id": event.event_id})
+    assert stored_event is not None
+    assert "processing" in stored_event
+    assert stored_event["processing"]["impact"]["primary_impact"] == "financial loss"
+    assert stored_event["processing"]["mitigation_action"] == "TRANSACTION_BLOCK"
 
 
 if __name__ == "__main__":
-    print("Running backend integration and M3-01 telemetry tests...")
+    print("Running backend integration, M3-01 telemetry, and M3-02 impact tests...")
     test_sql_injection_triggers_block()
     print("  test_sql_injection_triggers_block PASSED")
     test_benign_event_allows_request()
@@ -367,4 +578,16 @@ if __name__ == "__main__":
     print("  test_endpoint_event_triggers_suspicious_process_detection PASSED")
     test_post_events_suspicious_process_execution_full_pipeline()
     print("  test_post_events_suspicious_process_execution_full_pipeline PASSED")
-    print("\nALL 10 TESTS PASSED SUCCESSFULLY!")
+    test_credential_compromise_impact_assessment()
+    print("  test_credential_compromise_impact_assessment PASSED")
+    test_account_takeover_impact_assessment()
+    print("  test_account_takeover_impact_assessment PASSED")
+    test_endpoint_compromise_quarantine_mitigation()
+    print("  test_endpoint_compromise_quarantine_mitigation PASSED")
+    test_financial_loss_transaction_block_mitigation()
+    print("  test_financial_loss_transaction_block_mitigation PASSED")
+    test_url_block_mitigation()
+    print("  test_url_block_mitigation PASSED")
+    test_end_to_end_financial_loss_pipeline()
+    print("  test_end_to_end_financial_loss_pipeline PASSED")
+    print("\nALL 16 TESTS PASSED SUCCESSFULLY!")
