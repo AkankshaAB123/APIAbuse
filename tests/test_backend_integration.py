@@ -23,8 +23,10 @@ from backend.schemas.api_security_event import (
     ResourceInfo,
     ResponseInfo,
 )
+from unittest.mock import patch
 from backend.schemas.detector_result import DetectionEvidence, DetectorMetadata, DetectorResult
 from backend.schemas.impact_assessment import ImpactAssessment
+from backend.schemas.ml_result import AnomalyDetectionResult, MLDetectionResult, MLResult
 from backend.schemas.risk_assessment import RiskAssessment
 from backend.services.event_processor import EventProcessor
 from backend.services.detection_service import DetectionService
@@ -77,6 +79,11 @@ CLEANUP_EVENT_IDS = [
     "pytest-url-001",
     "test-ep-preserve-001",
     "test-net-preserve-001",
+    "pytest-ml-fail-001",
+    "pytest-db-fail-001",
+    "pytest-laptop-agent-001",
+    "pytest-mobile-agent-001",
+    "pytest-ml-anomaly-001",
 ]
 
 
@@ -556,8 +563,195 @@ def test_end_to_end_financial_loss_pipeline(clean_test_events=None):
     assert stored_event["processing"]["mitigation_action"] == "TRANSACTION_BLOCK"
 
 
+# ==============================================================
+# M3-03 PIPELINE HARDENING & RESILIENCE TESTS
+# ==============================================================
+
+def test_ml_failure_resilience_in_pipeline(clean_test_events=None):
+    """Verify that a failure during ML inference does not crash POST /events."""
+    if clean_test_events is None or callable(clean_test_events):
+        do_cleanup()
+    client = TestClient(app)
+    event = build_event("pytest-ml-fail-001", "laptop")
+    payload = {
+        "event": event.model_dump(mode="json"),
+        "ml_features": {"Destination Port": 80, "Flow Duration": 1000},
+    }
+
+    with patch("backend.services.ml_service.MLService.detect", side_effect=RuntimeError("ML engine offline")):
+        response = client.post("/events", json=payload)
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "processed"
+    assert data["ml_result"] is None
+    assert len(data["detector_results"]) == 18
+    assert data["risk_assessment"] is not None
+    assert data["mitigation_action"] == "ALLOW"
+
+
+def test_recent_events_db_failure_resilience(clean_test_events=None):
+    """Verify that a database error during recent-events query falls back to empty history and continues."""
+    if clean_test_events is None or callable(clean_test_events):
+        do_cleanup()
+    processor = EventProcessor()
+    event = build_event("pytest-db-fail-001", "laptop")
+
+    with patch.object(processor.repository, "get_recent_events", side_effect=Exception("MongoDB timeout")):
+        result = processor.process(event)
+
+    assert result.status == "processed"
+    assert len(result.detector_results) == 18
+    assert result.risk_assessment is not None
+    assert result.mitigation_action == "ALLOW"
+
+
+def test_laptop_endpoint_telemetry_pipeline_and_persistence(clean_test_events=None):
+    """Verify Laptop Agent telemetry travels through POST /events, triggers quarantine, and is preserved in MongoDB."""
+    if clean_test_events is None or callable(clean_test_events):
+        do_cleanup()
+    client = TestClient(app)
+
+    laptop_event = ApiSecurityEvent(
+        event_id="pytest-laptop-agent-001",
+        timestamp=datetime.now(timezone.utc),
+        domain="ENDPOINT",
+        network=NetworkInfo(source_ip="10.10.4.22", user_agent="LaptopAgent/1.0"),
+        identity=IdentityInfo(user_id="analyst_alice", roles=["security_analyst"], is_authenticated=True),
+        request=RequestInfo(method="POST", endpoint="/api/endpoint-telemetry"),
+        response=ResponseInfo(status_code=200, latency_ms=12.0),
+        resource=ResourceInfo(resource_type="endpoint"),
+        endpoint=EndpointInfo(
+            event_type="suspicious_process_execution",
+            hostname="laptop-alice-x1",
+            username="alice",
+            process_name="powershell.exe",
+            process_id=8192,
+            parent_process="cmd.exe",
+            executable_path="C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+            command_line="powershell.exe -EncodedCommand SYNTHETIC_DEMO",
+            privilege_level="user",
+            keyboard_hook=False,
+            network_connection=True,
+            elevated=False,
+        ),
+    )
+
+    response = client.post("/events", json={"event": laptop_event.model_dump(mode="json")})
+    assert response.status_code == 200
+
+    data = response.json()
+    assert data["status"] == "processed"
+    assert data["impact"]["primary_impact"] == "endpoint compromise"
+    assert data["mitigation_action"] == "QUARANTINE"
+
+    # Verify MongoDB raw event persistence preserved all endpoint fields
+    stored_event = events_collection.find_one({"event_id": "pytest-laptop-agent-001"})
+    assert stored_event is not None
+    assert stored_event["endpoint"]["hostname"] == "laptop-alice-x1"
+    assert stored_event["endpoint"]["process_name"] == "powershell.exe"
+    assert stored_event["endpoint"]["command_line"] == "powershell.exe -EncodedCommand SYNTHETIC_DEMO"
+    assert stored_event["endpoint"]["process_id"] == 8192
+    assert stored_event["processing"]["mitigation_action"] == "QUARANTINE"
+
+
+def test_mobile_network_telemetry_pipeline_and_persistence(clean_test_events=None):
+    """Verify Mobile Agent network telemetry travels through POST /events and persists completely."""
+    if clean_test_events is None or callable(clean_test_events):
+        do_cleanup()
+    client = TestClient(app)
+
+    mobile_event = ApiSecurityEvent(
+        event_id="pytest-mobile-agent-001",
+        timestamp=datetime.now(timezone.utc),
+        domain="NETWORK",
+        network=NetworkInfo(
+            source_ip="172.16.0.45",
+            user_agent="Dalvik/2.1.0 (Android 14; MobileAgent/2.0)",
+            destination_ip="198.51.100.80",
+            source_port=48210,
+            destination_port=443,
+            protocol="TCP",
+            bytes=2048,
+            packets=16,
+            connection_status="established",
+        ),
+        identity=IdentityInfo(user_id="mobile_user_99", is_authenticated=True),
+        request=RequestInfo(method="GET", endpoint="/api/mobile/feed"),
+        response=ResponseInfo(status_code=200, latency_ms=30.0),
+        resource=ResourceInfo(resource_type="feed"),
+    )
+
+    response = client.post("/events", json={"event": mobile_event.model_dump(mode="json")})
+    assert response.status_code == 200
+
+    data = response.json()
+    assert data["status"] == "processed"
+
+    # Verify MongoDB persistence of full network metrics
+    stored_event = events_collection.find_one({"event_id": "pytest-mobile-agent-001"})
+    assert stored_event is not None
+    assert stored_event["network"]["destination_ip"] == "198.51.100.80"
+    assert stored_event["network"]["source_port"] == 48210
+    assert stored_event["network"]["destination_port"] == 443
+    assert stored_event["network"]["protocol"] == "TCP"
+    assert stored_event["network"]["bytes"] == 2048
+    assert stored_event["network"]["packets"] == 16
+    assert stored_event["network"]["connection_status"] == "established"
+
+
+def test_ml_only_threat_anomaly_impact_classification():
+    """Verify ImpactService produces appropriate fallback impact for ML-only threat/anomaly."""
+    event = build_event("pytest-ml-anomaly-001", "normal")
+    ml_result = MLResult(
+        detection=MLDetectionResult(
+            prediction="DDoS",
+            confidence=0.96,
+            attack_explanation={"summary": "Volumetric flow anomaly"},
+            reasons=[],
+            model="xgboost",
+        ),
+        anomaly=AnomalyDetectionResult(
+            is_anomaly=True,
+            anomaly_score=-0.45,
+        ),
+    )
+
+    impact_service = ImpactService()
+    impact = impact_service.assess(event=event, detector_results=[], risk_assessment=None, ml_result=ml_result)
+
+    assert impact.impact_identified is True
+    assert impact.primary_impact == "service disruption"
+    assert "service disruption" in impact.categories
+
+
+def test_ml_only_benign_produces_no_impact():
+    """Verify that a benign ML result with no rule detections produces no impact."""
+    event = build_event("pytest-ml-benign-001", "normal")
+    ml_result = MLResult(
+        detection=MLDetectionResult(
+            prediction="BENIGN",
+            confidence=0.99,
+            attack_explanation={},
+            reasons=[],
+            model="xgboost",
+        ),
+        anomaly=AnomalyDetectionResult(
+            is_anomaly=False,
+            anomaly_score=0.35,
+        ),
+    )
+
+    impact_service = ImpactService()
+    impact = impact_service.assess(event=event, detector_results=[], risk_assessment=None, ml_result=ml_result)
+
+    assert impact.impact_identified is False
+    assert impact.primary_impact is None
+    assert impact.categories == []
+
+
 if __name__ == "__main__":
-    print("Running backend integration, M3-01 telemetry, and M3-02 impact tests...")
+    print("Running backend integration, M3-01 telemetry, M3-02 impact, and M3-03 resilience tests...")
     test_sql_injection_triggers_block()
     print("  test_sql_injection_triggers_block PASSED")
     test_benign_event_allows_request()
@@ -590,4 +784,16 @@ if __name__ == "__main__":
     print("  test_url_block_mitigation PASSED")
     test_end_to_end_financial_loss_pipeline()
     print("  test_end_to_end_financial_loss_pipeline PASSED")
-    print("\nALL 16 TESTS PASSED SUCCESSFULLY!")
+    test_ml_failure_resilience_in_pipeline()
+    print("  test_ml_failure_resilience_in_pipeline PASSED")
+    test_recent_events_db_failure_resilience()
+    print("  test_recent_events_db_failure_resilience PASSED")
+    test_laptop_endpoint_telemetry_pipeline_and_persistence()
+    print("  test_laptop_endpoint_telemetry_pipeline_and_persistence PASSED")
+    test_mobile_network_telemetry_pipeline_and_persistence()
+    print("  test_mobile_network_telemetry_pipeline_and_persistence PASSED")
+    test_ml_only_threat_anomaly_impact_classification()
+    print("  test_ml_only_threat_anomaly_impact_classification PASSED")
+    test_ml_only_benign_produces_no_impact()
+    print("  test_ml_only_benign_produces_no_impact PASSED")
+    print("\nALL 22 TESTS PASSED SUCCESSFULLY!")

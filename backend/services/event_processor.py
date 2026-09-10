@@ -49,15 +49,21 @@ class EventProcessor:
             "[2] Checking recent events in MongoDB..."
         )
 
-        recent_events = (
-            self.repository.get_recent_events(
-                event
+        try:
+            recent_events = (
+                self.repository.get_recent_events(
+                    event
+                )
             )
-        )
-
-        print(
-            "[3] Recent events retrieved."
-        )
+            print(
+                "[3] Recent events retrieved."
+            )
+        except Exception as exc:
+            print(
+                f"[WARN] Failed to retrieve recent events from MongoDB: {exc}. "
+                "Falling back to empty history."
+            )
+            recent_events = []
 
 
         # ====================================================
@@ -110,9 +116,16 @@ class EventProcessor:
                 "[8] ML features supplied. Running ML detection..."
             )
 
-            ml_result = self.ml_service.detect(
-                ml_features
-            )
+            try:
+                ml_result = self.ml_service.detect(
+                    ml_features
+                )
+            except Exception as exc:
+                print(
+                    f"[WARN] ML detection failed: {exc}. "
+                    "Continuing without ML."
+                )
+                ml_result = None
 
         else:
 
@@ -157,6 +170,7 @@ class EventProcessor:
                 event=event,
                 detector_results=detector_results,
                 risk_assessment=risk_assessment,
+                ml_result=ml_result,
             )
         )
 

@@ -3,6 +3,7 @@ from typing import Any
 from backend.schemas.api_security_event import ApiSecurityEvent
 from backend.schemas.detector_result import DetectorResult
 from backend.schemas.impact_assessment import ImpactAssessment
+from backend.schemas.ml_result import MLResult
 from backend.schemas.risk_assessment import RiskAssessment
 
 
@@ -42,13 +43,25 @@ class ImpactService:
         event: ApiSecurityEvent,
         detector_results: list[DetectorResult] | None = None,
         risk_assessment: RiskAssessment | None = None,
+        ml_result: MLResult | None = None,
     ) -> ImpactAssessment:
         detector_results = detector_results or []
         detected_results = [r for r in detector_results if r.detected]
 
+        ml_threat = False
+        ml_prediction = ""
+        ml_is_anomaly = False
+        if ml_result is not None:
+            ml_prediction = (ml_result.detection.prediction or "").strip()
+            ml_is_anomaly = bool(ml_result.anomaly.is_anomaly)
+            ml_threat = (
+                ml_prediction.upper() != "BENIGN" and bool(ml_prediction)
+            ) or ml_is_anomaly
+
         threat_detected = (
             (risk_assessment is not None and risk_assessment.threat_detected)
             or bool(detected_results)
+            or ml_threat
         )
 
         if not threat_detected:
@@ -244,6 +257,34 @@ class ImpactService:
             categories.append("malicious url")
             reasons.append("Request contains suspicious or phishing URL reference.")
 
+        # 9. ML Signal Threat / Anomaly Fallback
+        if ml_threat:
+            pred_upper = ml_prediction.upper()
+            if "DDOS" in pred_upper or "DOS" in pred_upper:
+                categories.append("service disruption")
+                reasons.append(f"ML model predicted volumetric traffic attack: {ml_prediction}.")
+            elif "PORTSCAN" in pred_upper or "SCAN" in pred_upper:
+                categories.append("data exposure")
+                reasons.append(f"ML model predicted network scanning/reconnaissance: {ml_prediction}.")
+            elif "BRUTE" in pred_upper or "PATATOR" in pred_upper:
+                categories.append("credential compromise")
+                reasons.append(f"ML model predicted automated brute force: {ml_prediction}.")
+            elif "INFILTRATION" in pred_upper or "BOT" in pred_upper:
+                categories.append("endpoint compromise")
+                reasons.append(f"ML model predicted host infiltration or bot activity: {ml_prediction}.")
+            elif "SQL" in pred_upper:
+                categories.append("data exposure")
+                reasons.append(f"ML model predicted database injection: {ml_prediction}.")
+            elif "XSS" in pred_upper or "WEB" in pred_upper:
+                categories.append("unauthorized access")
+                reasons.append(f"ML model predicted web exploit: {ml_prediction}.")
+            elif ml_is_anomaly:
+                categories.append("service disruption")
+                reasons.append("ML anomaly detector identified anomalous network traffic flow.")
+            elif pred_upper and pred_upper != "BENIGN":
+                categories.append("unauthorized access")
+                reasons.append(f"ML model identified unclassified security threat: {ml_prediction}.")
+
         # Fallback if threat was detected but none of above matched explicitly
         if not categories:
             categories.append("unauthorized access")
@@ -266,6 +307,9 @@ class ImpactService:
         severity = "LOW"
         if risk_assessment:
             severity = risk_assessment.risk_level
+        elif ml_threat:
+            severity = "HIGH" if (ml_result and ml_result.detection.confidence >= 0.75) else "MEDIUM"
+
         highest_detector_severity = "LOW"
         severity_ranks = {"LOW": 1, "MEDIUM": 2, "HIGH": 3, "CRITICAL": 4}
         for r in detected_results:
@@ -285,5 +329,7 @@ class ImpactService:
                 "attack_types": list(attack_types),
                 "detector_ids": list(detector_ids),
                 "domain": event.domain,
+                "ml_prediction": ml_prediction if ml_threat else None,
+                "ml_anomaly": ml_is_anomaly,
             },
         )
