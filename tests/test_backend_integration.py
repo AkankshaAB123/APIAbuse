@@ -84,6 +84,9 @@ CLEANUP_EVENT_IDS = [
     "pytest-laptop-agent-001",
     "pytest-mobile-agent-001",
     "pytest-ml-anomaly-001",
+    "pytest-direct-ingest-001",
+    "pytest-wrapped-ingest-001",
+    "pytest-direct-threat-001",
 ]
 
 
@@ -115,7 +118,7 @@ def test_sql_injection_triggers_block(clean_test_events=None):
     )
 
     result = processor.process(event)
-    
+
     assert result.source_ip == "192.168.1.100"
 
     sql_detector = next(
@@ -750,8 +753,79 @@ def test_ml_only_benign_produces_no_impact():
     assert impact.categories == []
 
 
+def test_post_events_accepts_wrapped_payload(clean_test_events=None):
+    """Verify POST /events continues to accept the wrapped EventProcessingRequest format."""
+    if clean_test_events is None or callable(clean_test_events):
+        do_cleanup()
+    client = TestClient(app)
+    event = build_event("pytest-wrapped-ingest-001", "normal-product")
+
+    response = client.post(
+        "/events",
+        json={"event": event.model_dump(mode="json"), "ml_features": None},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "processed"
+    assert data["event_id"] == "pytest-wrapped-ingest-001"
+    assert data["mitigation_action"] == "ALLOW"
+
+
+def test_post_events_accepts_direct_raw_event(clean_test_events=None):
+    """Verify POST /events accepts a direct raw ApiSecurityEvent payload without wrapping."""
+    if clean_test_events is None or callable(clean_test_events):
+        do_cleanup()
+    client = TestClient(app)
+    event = build_event("pytest-direct-ingest-001", "normal-product")
+
+    response = client.post(
+        "/events",
+        json=event.model_dump(mode="json"),
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "processed"
+    assert data["event_id"] == "pytest-direct-ingest-001"
+    assert data["mitigation_action"] == "ALLOW"
+
+
+def test_direct_raw_event_triggers_full_processing_pipeline(clean_test_events=None):
+    """Verify direct raw ApiSecurityEvent executes the full detection, risk, impact, and mitigation pipeline."""
+    if clean_test_events is None or callable(clean_test_events):
+        do_cleanup()
+    client = TestClient(app)
+    event = build_event("pytest-direct-threat-001", "UNION SELECT")
+
+    response = client.post(
+        "/events",
+        json=event.model_dump(mode="json"),
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "processed"
+    assert data["event_id"] == "pytest-direct-threat-001"
+    assert data["mitigation_action"] == "RATE_LIMIT"
+    assert data["risk_assessment"]["threat_detected"] is True
+    assert data["impact"]["impact_identified"] is True
+    assert "data exposure" in data["impact"]["categories"]
+
+
+def test_direct_invalid_event_returns_422():
+    """Verify an invalid raw event payload is rejected with 422 Unprocessable Entity."""
+    client = TestClient(app)
+    response = client.post(
+        "/events",
+        json={"event_id": "malformed-event", "some_key": 123},
+    )
+
+    assert response.status_code == 422
+
+
 if __name__ == "__main__":
-    print("Running backend integration, M3-01 telemetry, M3-02 impact, and M3-03 resilience tests...")
+    print("Running backend integration, M3-01 telemetry, M3-02 impact, M3-03 resilience, and M3-05 ingestion tests...")
     test_sql_injection_triggers_block()
     print("  test_sql_injection_triggers_block PASSED")
     test_benign_event_allows_request()
@@ -796,4 +870,12 @@ if __name__ == "__main__":
     print("  test_ml_only_threat_anomaly_impact_classification PASSED")
     test_ml_only_benign_produces_no_impact()
     print("  test_ml_only_benign_produces_no_impact PASSED")
-    print("\nALL 22 TESTS PASSED SUCCESSFULLY!")
+    test_post_events_accepts_wrapped_payload()
+    print("  test_post_events_accepts_wrapped_payload PASSED")
+    test_post_events_accepts_direct_raw_event()
+    print("  test_post_events_accepts_direct_raw_event PASSED")
+    test_direct_raw_event_triggers_full_processing_pipeline()
+    print("  test_direct_raw_event_triggers_full_processing_pipeline PASSED")
+    test_direct_invalid_event_returns_422()
+    print("  test_direct_invalid_event_returns_422 PASSED")
+    print("\nALL 26 TESTS PASSED SUCCESSFULLY!")
