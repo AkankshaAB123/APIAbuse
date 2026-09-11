@@ -87,6 +87,8 @@ CLEANUP_EVENT_IDS = [
     "pytest-direct-ingest-001",
     "pytest-wrapped-ingest-001",
     "pytest-direct-threat-001",
+    "pytest-threats-impact-001",
+    "pytest-threats-endpoint-001",
 ]
 
 
@@ -824,8 +826,128 @@ def test_direct_invalid_event_returns_422():
     assert response.status_code == 422
 
 
+def test_get_threats_exposes_persisted_impact_assessment(clean_test_events=None):
+    """Verify that GET /threats returns persisted threats with their impact assessment."""
+    if clean_test_events is None or callable(clean_test_events):
+        do_cleanup()
+    client = TestClient(app)
+    event = build_event("pytest-threats-impact-001", "UNION SELECT * FROM users")
+
+    # Ingest event so it is processed, assessed, and persisted
+    post_res = client.post("/events", json=event.model_dump(mode="json"))
+    assert post_res.status_code == 200
+    assert post_res.json()["status"] == "processed"
+
+    # Query GET /threats
+    response = client.get("/threats")
+    assert response.status_code == 200
+    threats = response.json()
+    assert isinstance(threats, list)
+
+    threat = next((t for t in threats if t.get("id") == "pytest-threats-impact-001"), None)
+    assert threat is not None, "Persisted threat was not returned by GET /threats"
+
+    # Verify impact assessment exposure
+    assert "impact" in threat
+    impact = threat["impact"]
+    assert impact is not None
+    assert impact["impact_identified"] is True
+    assert impact["primary_impact"] == "data exposure"
+    assert "data exposure" in impact["categories"]
+    assert impact["severity"] in ["HIGH", "CRITICAL"]
+    assert isinstance(impact["reasons"], list)
+    assert len(impact["reasons"]) > 0
+
+    # Verify baseline threat fields are preserved
+    assert threat["sourceIp"] == "192.168.1.100"
+    assert threat["threatDetected"] is True
+    assert threat["action"] in ["BLOCK", "RATE_LIMIT"]
+    assert "detectors" in threat
+
+
+def test_get_threats_endpoint_compromise_impact_assessment(clean_test_events=None):
+    """Verify GET /threats exposes endpoint compromise impact for device agent telemetry."""
+    if clean_test_events is None or callable(clean_test_events):
+        do_cleanup()
+    client = TestClient(app)
+    laptop_event = ApiSecurityEvent(
+        event_id="pytest-threats-endpoint-001",
+        timestamp=datetime.now(timezone.utc),
+        domain="ENDPOINT",
+        network=NetworkInfo(source_ip="192.168.1.150", user_agent="LaptopAgent/1.0"),
+        identity=IdentityInfo(user_id="alice", is_authenticated=True),
+        request=RequestInfo(method="POST", endpoint="/api/endpoint-telemetry"),
+        response=ResponseInfo(status_code=200, latency_ms=12.0),
+        resource=ResourceInfo(resource_type="endpoint"),
+        endpoint=EndpointInfo(
+            event_type="suspicious_process_execution",
+            hostname="laptop-alice-x1",
+            username="alice",
+            process_name="powershell.exe",
+            process_id=8192,
+            parent_process="cmd.exe",
+            executable_path="C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+            command_line="powershell.exe -EncodedCommand SYNTHETIC_DEMO",
+            privilege_level="user",
+            keyboard_hook=False,
+            network_connection=True,
+            elevated=False,
+        ),
+    )
+
+    post_res = client.post("/events", json=laptop_event.model_dump(mode="json"))
+    assert post_res.status_code == 200
+
+    response = client.get("/threats")
+    assert response.status_code == 200
+    threats = response.json()
+
+    threat = next((t for t in threats if t.get("id") == "pytest-threats-endpoint-001"), None)
+    assert threat is not None
+
+    assert "impact" in threat
+    impact = threat["impact"]
+    assert impact is not None
+    assert impact["impact_identified"] is True
+    assert impact["primary_impact"] == "endpoint compromise"
+    assert "endpoint compromise" in impact["categories"]
+    assert impact["severity"] == "CRITICAL"
+    assert threat["action"] == "QUARANTINE"
+
+
+def test_get_threat_by_id_includes_impact(clean_test_events=None):
+    """Verify GET /threats/{event_id} includes impact assessment in the complete threat record."""
+    client = TestClient(app)
+    event = build_event("pytest-threats-impact-001", "UNION SELECT * FROM users")
+    post_res = client.post("/events", json=event.model_dump(mode="json"))
+    assert post_res.status_code == 200
+
+    response = client.get("/threats/pytest-threats-impact-001")
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["event_id"] == "pytest-threats-impact-001"
+    assert "processing" in data
+    assert "impact" in data["processing"]
+    assert data["processing"]["impact"]["impact_identified"] is True
+    assert data["processing"]["impact"]["primary_impact"] == "data exposure"
+    assert "impact" in data
+    assert data["impact"]["primary_impact"] == "data exposure"
+
+
 if __name__ == "__main__":
-    print("Running backend integration, M3-01 telemetry, M3-02 impact, M3-03 resilience, and M3-05 ingestion tests...")
+    if len(sys.argv) > 1 and sys.argv[1] == "--threats":
+        print("Running focused /threats impact exposure tests...")
+        test_get_threats_exposes_persisted_impact_assessment()
+        print("  test_get_threats_exposes_persisted_impact_assessment PASSED")
+        test_get_threats_endpoint_compromise_impact_assessment()
+        print("  test_get_threats_endpoint_compromise_impact_assessment PASSED")
+        test_get_threat_by_id_includes_impact()
+        print("  test_get_threat_by_id_includes_impact PASSED")
+        print("\nALL FOCUSED THREATS TESTS PASSED SUCCESSFULLY!")
+        sys.exit(0)
+
+    print("Running backend integration, M3-01 telemetry, M3-02 impact, M3-03 resilience, M3-05 ingestion, and M3-05 threats tests...")
     test_sql_injection_triggers_block()
     print("  test_sql_injection_triggers_block PASSED")
     test_benign_event_allows_request()
@@ -878,4 +1000,10 @@ if __name__ == "__main__":
     print("  test_direct_raw_event_triggers_full_processing_pipeline PASSED")
     test_direct_invalid_event_returns_422()
     print("  test_direct_invalid_event_returns_422 PASSED")
-    print("\nALL 26 TESTS PASSED SUCCESSFULLY!")
+    test_get_threats_exposes_persisted_impact_assessment()
+    print("  test_get_threats_exposes_persisted_impact_assessment PASSED")
+    test_get_threats_endpoint_compromise_impact_assessment()
+    print("  test_get_threats_endpoint_compromise_impact_assessment PASSED")
+    test_get_threat_by_id_includes_impact()
+    print("  test_get_threat_by_id_includes_impact PASSED")
+    print("\nALL 29 TESTS PASSED SUCCESSFULLY!")

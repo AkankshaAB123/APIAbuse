@@ -3,6 +3,7 @@ from collections import defaultdict
 from fastapi import APIRouter, HTTPException
 
 from backend.database import events_collection
+from backend.schemas.impact_assessment import ImpactAssessment
 
 
 router = APIRouter()
@@ -52,6 +53,20 @@ def get_threats():
             if attack_types
             else "UNKNOWN"
         )
+
+        impact_data = processing.get(
+            "impact"
+        )
+
+        impact = None
+        if impact_data is not None:
+            if isinstance(impact_data, dict):
+                try:
+                    impact = ImpactAssessment.model_validate(impact_data).model_dump()
+                except Exception:
+                    impact = impact_data
+            else:
+                impact = impact_data
 
         threats.append(
             {
@@ -120,6 +135,8 @@ def get_threats():
                 ),
 
                 "detectors": detector_results,
+
+                "impact": impact,
             }
         )
 
@@ -147,6 +164,13 @@ def get_threat_by_id(event_id: str):
     document["_id"] = str(
         document["_id"]
     )
+
+    processing = document.get(
+        "processing",
+        {}
+    )
+    if "impact" not in document and "impact" in processing:
+        document["impact"] = processing["impact"]
 
     return document
 
