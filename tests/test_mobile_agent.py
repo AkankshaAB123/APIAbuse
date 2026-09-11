@@ -102,6 +102,62 @@ class TestMobileAgent(unittest.TestCase):
         self.assertEqual(event.endpoint.privilege_level, "ROOT")
         self.assertEqual(event.domain, "ENDPOINT")
 
+    def test_unauthorized_transaction_simulation_produces_valid_event(self) -> None:
+        """Verify unauthorized transaction simulation produces valid mobile telemetry and event."""
+        telemetry = self.agent.simulate_unauthorized_transaction()
+        self.assertEqual(telemetry.event_type, "unauthorized_transaction")
+        self.assertTrue(telemetry.network_connection)
+        self.assertEqual(telemetry.process_name, "com.session.replay.bot")
+
+        # Alias test
+        alias_telem = self.agent.simulate_transaction_abuse()
+        self.assertEqual(alias_telem.event_type, "unauthorized_transaction")
+
+        event = self.agent.build_event(telemetry)
+        self.assertIsInstance(event, ApiSecurityEvent)
+        self.assertEqual(event.domain, "ENDPOINT")
+        self.assertEqual(event.request.endpoint, "/api/transactions/transfer")
+        self.assertEqual(event.resource.resource_type, "transaction")
+        self.assertTrue(event.resource.is_sensitive)
+        self.assertTrue(event.identity.is_authenticated)
+
+    def test_fake_shopping_simulation_produces_valid_event(self) -> None:
+        """Verify fake shopping simulation produces valid mobile telemetry and event."""
+        telemetry = self.agent.simulate_fake_shopping()
+        self.assertEqual(telemetry.event_type, "fake_shopping")
+        self.assertTrue(telemetry.network_connection)
+        self.assertEqual(telemetry.process_name, "com.fake.shopping.app")
+
+        # Alias test
+        alias_telem = self.agent.simulate_fraudulent_website()
+        self.assertEqual(alias_telem.event_type, "fake_shopping")
+
+        event = self.agent.build_event(telemetry)
+        self.assertIsInstance(event, ApiSecurityEvent)
+        self.assertEqual(event.domain, "ENDPOINT")
+        self.assertEqual(event.request.endpoint, "/api/shopping/checkout")
+        self.assertEqual(event.resource.resource_type, "shopping_session")
+        self.assertTrue(event.resource.is_sensitive)
+
+    def test_fake_bank_simulation_produces_valid_event(self) -> None:
+        """Verify fake bank / suspicious URL simulation produces valid mobile telemetry and event."""
+        telemetry = self.agent.simulate_fake_bank()
+        self.assertEqual(telemetry.event_type, "fake_bank")
+        self.assertTrue(telemetry.network_connection)
+        self.assertEqual(telemetry.process_name, "com.android.chrome")
+        self.assertEqual(telemetry.parent_process, "com.google.android.apps.messaging")
+
+        # Alias test
+        alias_telem = self.agent.simulate_suspicious_url()
+        self.assertEqual(alias_telem.event_type, "fake_bank")
+
+        event = self.agent.build_event(telemetry)
+        self.assertIsInstance(event, ApiSecurityEvent)
+        self.assertEqual(event.domain, "ENDPOINT")
+        self.assertEqual(event.request.endpoint, "/api/banking/login")
+        self.assertEqual(event.resource.resource_type, "bank_account")
+        self.assertTrue(event.resource.is_sensitive)
+
     def test_all_generated_events_pass_pydantic_validation(self) -> None:
         """Verify all modes produce valid Pydantic ApiSecurityEvents with domain=ENDPOINT."""
         scenarios = [
@@ -111,6 +167,9 @@ class TestMobileAgent(unittest.TestCase):
             self.agent.simulate_accessibility_abuse(),
             self.agent.simulate_reverse_shell(),
             self.agent.simulate_privilege_escalation(),
+            self.agent.simulate_unauthorized_transaction(),
+            self.agent.simulate_fake_shopping(),
+            self.agent.simulate_fake_bank(),
         ]
 
         for idx, telem in enumerate(scenarios):
@@ -121,13 +180,12 @@ class TestMobileAgent(unittest.TestCase):
             self.assertIsNotNone(event.identity)
             self.assertIsNotNone(event.request)
             self.assertIsNotNone(event.response)
-            self.assertEqual(event.resource.resource_type, "mobile_device")
+            self.assertIsNotNone(event.resource)
 
             # Serialization round-trip
             dumped = event.model_dump(mode="json")
             self.assertEqual(dumped["domain"], "ENDPOINT")
             self.assertEqual(dumped["event_id"], f"test-mobile-val-{idx}")
-            self.assertEqual(dumped["resource"]["resource_id"], "PIXEL-8-TEST")
 
     def test_agent_client_is_called_when_send_event_used(self) -> None:
         """Verify send_event delegates strictly to AgentClient."""
@@ -185,6 +243,12 @@ class TestMobileAgent(unittest.TestCase):
             "accessibility_abuse",
             "reverse_shell",
             "privilege_escalation",
+            "unauthorized_transaction",
+            "transaction_abuse",
+            "fake_shopping",
+            "fraudulent_website",
+            "fake_bank",
+            "suspicious_url",
         ]:
             args = parse_args(["--mode", "simulate", "--scenario", scen])
             self.assertEqual(args.scenario, scen)

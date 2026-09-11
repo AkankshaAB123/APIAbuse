@@ -254,6 +254,90 @@ class MobileAgent:
     # Alias for API compatibility with LaptopAgent
     simulate_suspicious_process = simulate_suspicious_app
 
+    def simulate_unauthorized_transaction(
+        self,
+        hostname: Optional[str] = None,
+        username: Optional[str] = None,
+    ) -> EndpointInfo:
+        """
+        Scenario 6: Generate synthetic telemetry for unauthorized mobile session / transaction abuse.
+        Simulates an unauthorized app attempting background session replay against payments.
+        No real transactions or funds transfers are performed.
+        """
+        return EndpointInfo(
+            event_type="unauthorized_transaction",
+            hostname=hostname or self.hostname,
+            username=username or self.username,
+            process_name="com.session.replay.bot",
+            process_id=5410,
+            parent_process="zygote",
+            executable_path="/data/app/com.session.replay.bot/base.apk",
+            command_line="com.session.replay.bot --replay-session token-9988 --target /api/transactions/transfer",
+            privilege_level="USER",
+            keyboard_hook=False,
+            network_connection=True,
+            elevated=False,
+        )
+
+    # Alias for Scenario 6
+    simulate_transaction_abuse = simulate_unauthorized_transaction
+
+    def simulate_fake_shopping(
+        self,
+        hostname: Optional[str] = None,
+        username: Optional[str] = None,
+    ) -> EndpointInfo:
+        """
+        Scenario 7: Generate synthetic telemetry representing mobile fake shopping app / fraudulent store.
+        Simulates in-app webview loading a suspicious shopping storefront.
+        Does not visit or resolve any real fraudulent website.
+        """
+        return EndpointInfo(
+            event_type="fake_shopping",
+            hostname=hostname or self.hostname,
+            username=username or self.username,
+            process_name="com.fake.shopping.app",
+            process_id=5520,
+            parent_process="zygote",
+            executable_path="/data/app/com.fake.shopping.app/base.apk",
+            command_line="com.fake.shopping.app --open-url http://fake-shopping-deals-mall.xyz/deals",
+            privilege_level="USER",
+            keyboard_hook=False,
+            network_connection=True,
+            elevated=False,
+        )
+
+    # Alias for Scenario 7
+    simulate_fraudulent_website = simulate_fake_shopping
+
+    def simulate_fake_bank(
+        self,
+        hostname: Optional[str] = None,
+        username: Optional[str] = None,
+    ) -> EndpointInfo:
+        """
+        Scenario 8: Generate synthetic telemetry representing fake bank / suspicious URL on mobile.
+        Simulates opening a deceptive banking phishing link received via SMS/smishing.
+        Does not resolve any real domain or collect credentials.
+        """
+        return EndpointInfo(
+            event_type="fake_bank",
+            hostname=hostname or self.hostname,
+            username=username or self.username,
+            process_name="com.android.chrome",
+            process_id=5630,
+            parent_process="com.google.android.apps.messaging",
+            executable_path="/data/app/com.android.chrome/base.apk",
+            command_line="com.android.chrome --url http://secure-login-verify-bank-account.info/login",
+            privilege_level="USER",
+            keyboard_hook=False,
+            network_connection=True,
+            elevated=False,
+        )
+
+    # Alias for Scenario 8
+    simulate_suspicious_url = simulate_fake_bank
+
     # =========================================================================
     # 3. ApiSecurityEvent CREATION (USING EXISTING BACKEND SCHEMA)
     # =========================================================================
@@ -271,35 +355,111 @@ class MobileAgent:
     ) -> ApiSecurityEvent:
         """
         Construct a fully valid ApiSecurityEvent tagged with domain="ENDPOINT".
-        Uses existing schema without duplication.
+        Uses existing schema without duplication and contextually populates
+        telemetry for demo scenarios if not explicitly overridden.
         """
         evt_id = event_id or f"mobile-evt-{uuid.uuid4().hex[:8]}"
         evt_time = timestamp or datetime.now(timezone.utc)
+        evt_type = endpoint_info.event_type or ""
 
         net_info = network_info or NetworkInfo(
             source_ip="192.168.1.150",
             user_agent="MobileAgent/1.0 (Android 14; Mobile)",
         )
 
-        id_info = identity_info or IdentityInfo(
-            user_id=self.username,
-            roles=["mobile_app_user"],
-            is_authenticated=True,
-        )
+        if identity_info is not None:
+            id_info = identity_info
+        elif evt_type in ("unauthorized_transaction", "transaction_abuse"):
+            id_info = IdentityInfo(
+                user_id="compromised_mobile_user",
+                session_id="stolen-mobile-session-9988",
+                roles=["customer"],
+                is_authenticated=True,
+            )
+        elif evt_type in ("fake_shopping", "fraudulent_website"):
+            id_info = IdentityInfo(
+                user_id="mobile_shopper_45",
+                session_id="fake-shop-mobile-sess-771",
+                roles=["customer"],
+                is_authenticated=False,
+            )
+        elif evt_type in ("fake_bank", "suspicious_url"):
+            id_info = IdentityInfo(
+                user_id="targeted_mobile_banking_user",
+                session_id="fake-bank-mobile-sess-990",
+                roles=["banking_user"],
+                is_authenticated=False,
+            )
+        else:
+            id_info = IdentityInfo(
+                user_id=self.username,
+                roles=["mobile_app_user"],
+                is_authenticated=True,
+            )
 
-        req_info = request_info or RequestInfo(
-            method="POST",
-            endpoint="/mobile/telemetry",
-        )
+        if request_info is not None:
+            req_info = request_info
+        elif evt_type in ("unauthorized_transaction", "transaction_abuse"):
+            req_info = RequestInfo(
+                method="POST",
+                endpoint="/api/transactions/transfer",
+                headers={"X-Session-State": "replayed", "Authorization": "Bearer mobile-hijacked-token"},
+                body={"recipient_account": "ACC-UNKNOWN-999", "amount": 9500.0, "currency": "USD", "action": "unauthorized_transfer"},
+            )
+        elif evt_type in ("fake_shopping", "fraudulent_website"):
+            req_info = RequestInfo(
+                method="POST",
+                endpoint="/api/shopping/checkout",
+                headers={"Host": "fake-shopping-deals-mall.xyz"},
+                query_params={"url": "http://fake-shopping-deals-mall.xyz/deals", "category": "fraudulent_store"},
+                body={"merchant": "SuperDiscountMall-Fraudulent", "cart_total": 12.99, "suspected_phishing": True},
+            )
+        elif evt_type in ("fake_bank", "suspicious_url"):
+            req_info = RequestInfo(
+                method="GET",
+                endpoint="/api/banking/login",
+                headers={"Host": "secure-login-verify-bank-account.info"},
+                query_params={"url": "http://secure-login-verify-bank-account.info/login", "suspicious_domain": "secure-login-verify-bank-account.info"},
+                body={"phishing_domain": "secure-login-verify-bank-account.info", "fake_brand": "FirstNationalDemoBank"},
+            )
+        else:
+            req_info = RequestInfo(
+                method="POST",
+                endpoint="/mobile/telemetry",
+            )
 
         resp_info = response_info or ResponseInfo(
             status_code=200,
         )
 
-        res_info = resource_info or ResourceInfo(
-            resource_type="mobile_device",
-            resource_id=self.device_id or self.hostname,
-        )
+        if resource_info is not None:
+            res_info = resource_info
+        elif evt_type in ("unauthorized_transaction", "transaction_abuse"):
+            res_info = ResourceInfo(
+                resource_type="transaction",
+                resource_id="tx-unauth-mobile-8821",
+                owner_id="victim_account_12",
+                is_sensitive=True,
+            )
+        elif evt_type in ("fake_shopping", "fraudulent_website"):
+            res_info = ResourceInfo(
+                resource_type="shopping_session",
+                resource_id="fake-mall-mobile-332",
+                owner_id="mobile_shopper_45",
+                is_sensitive=True,
+            )
+        elif evt_type in ("fake_bank", "suspicious_url"):
+            res_info = ResourceInfo(
+                resource_type="bank_account",
+                resource_id="fake-bank-mobile-portal",
+                owner_id="targeted_mobile_banking_user",
+                is_sensitive=True,
+            )
+        else:
+            res_info = ResourceInfo(
+                resource_type="mobile_device",
+                resource_id=self.device_id or self.hostname,
+            )
 
         return ApiSecurityEvent(
             schema_version="1.0",
@@ -347,6 +507,12 @@ def parse_args(args: Optional[list[str]] = None) -> argparse.Namespace:
             "accessibility_abuse",
             "reverse_shell",
             "privilege_escalation",
+            "unauthorized_transaction",
+            "transaction_abuse",
+            "fake_shopping",
+            "fraudulent_website",
+            "fake_bank",
+            "suspicious_url",
         ],
         default=None,
         help="Attack scenario to simulate (required if --mode is 'simulate').",
@@ -400,6 +566,12 @@ def main(cli_args: Optional[list[str]] = None) -> int:
             "accessibility_abuse": agent.simulate_keylogging,
             "reverse_shell": agent.simulate_reverse_shell,
             "privilege_escalation": agent.simulate_privilege_escalation,
+            "unauthorized_transaction": agent.simulate_unauthorized_transaction,
+            "transaction_abuse": agent.simulate_unauthorized_transaction,
+            "fake_shopping": agent.simulate_fake_shopping,
+            "fraudulent_website": agent.simulate_fake_shopping,
+            "fake_bank": agent.simulate_fake_bank,
+            "suspicious_url": agent.simulate_fake_bank,
         }
         simulator_fn = scenario_map[args.scenario]
         telemetry = simulator_fn()

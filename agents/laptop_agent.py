@@ -242,6 +242,90 @@ class LaptopAgent:
             elevated=True,
         )
 
+    def simulate_unauthorized_transaction(
+        self,
+        hostname: Optional[str] = None,
+        username: Optional[str] = None,
+    ) -> EndpointInfo:
+        """
+        Scenario 6: Generate synthetic telemetry for unauthorized session/transaction abuse.
+        Simulates an automated headless script attempting unauthorized funds transfer via replayed session.
+        No real transactions or funds transfers are performed.
+        """
+        return EndpointInfo(
+            event_type="unauthorized_transaction",
+            hostname=hostname or self.hostname,
+            username=username or self.username,
+            process_name="browser_automation.exe",
+            process_id=4410,
+            parent_process="explorer.exe",
+            executable_path=r"C:\Tools\browser_automation.exe",
+            command_line="browser_automation.exe --replay-session token-9988 --target /api/transactions/transfer",
+            privilege_level="USER",
+            keyboard_hook=False,
+            network_connection=True,
+            elevated=False,
+        )
+
+    # Alias for Scenario 6
+    simulate_transaction_abuse = simulate_unauthorized_transaction
+
+    def simulate_fake_shopping(
+        self,
+        hostname: Optional[str] = None,
+        username: Optional[str] = None,
+    ) -> EndpointInfo:
+        """
+        Scenario 7: Generate synthetic telemetry representing fake shopping / fraudulent website interaction.
+        Simulates browser navigation to a suspected fraudulent shopping site.
+        Does not resolve or connect to any real fraudulent website.
+        """
+        return EndpointInfo(
+            event_type="fake_shopping",
+            hostname=hostname or self.hostname,
+            username=username or self.username,
+            process_name="msedge.exe",
+            process_id=4520,
+            parent_process="explorer.exe",
+            executable_path=r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
+            command_line='msedge.exe "http://fake-shopping-deals-mall.xyz/checkout?promo=99-off"',
+            privilege_level="USER",
+            keyboard_hook=False,
+            network_connection=True,
+            elevated=False,
+        )
+
+    # Alias for Scenario 7
+    simulate_fraudulent_website = simulate_fake_shopping
+
+    def simulate_fake_bank(
+        self,
+        hostname: Optional[str] = None,
+        username: Optional[str] = None,
+    ) -> EndpointInfo:
+        """
+        Scenario 8: Generate synthetic telemetry representing fake bank / suspicious URL activity.
+        Simulates browser invocation opening a deceptive banking portal URL.
+        Does not resolve any real domain or collect credentials.
+        """
+        return EndpointInfo(
+            event_type="fake_bank",
+            hostname=hostname or self.hostname,
+            username=username or self.username,
+            process_name="chrome.exe",
+            process_id=4630,
+            parent_process="outlook.exe",
+            executable_path=r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+            command_line='chrome.exe "http://secure-login-verify-bank-account.info/login"',
+            privilege_level="USER",
+            keyboard_hook=False,
+            network_connection=True,
+            elevated=False,
+        )
+
+    # Alias for Scenario 8
+    simulate_suspicious_url = simulate_fake_bank
+
     # =========================================================================
     # 3. ApiSecurityEvent CREATION (USING EXISTING BACKEND SCHEMA)
     # =========================================================================
@@ -255,33 +339,115 @@ class LaptopAgent:
         identity_info: Optional[IdentityInfo] = None,
         request_info: Optional[RequestInfo] = None,
         response_info: Optional[ResponseInfo] = None,
+        resource_info: Optional[ResourceInfo] = None,
     ) -> ApiSecurityEvent:
         """
         Construct a fully valid ApiSecurityEvent tagged with domain="ENDPOINT".
-        Uses existing schema without duplication.
+        Uses existing schema without duplication and contextually populates
+        telemetry for demo scenarios if not explicitly overridden.
         """
         evt_id = event_id or f"laptop-evt-{uuid.uuid4().hex[:8]}"
         evt_time = timestamp or datetime.now(timezone.utc)
+        evt_type = endpoint_info.event_type or ""
 
         net_info = network_info or NetworkInfo(
             source_ip="127.0.0.1",
             user_agent="LaptopAgent/1.0",
         )
 
-        id_info = identity_info or IdentityInfo(
-            user_id=self.username,
-            roles=["workstation_user"],
-            is_authenticated=True,
-        )
+        if identity_info is not None:
+            id_info = identity_info
+        elif evt_type in ("unauthorized_transaction", "transaction_abuse"):
+            id_info = IdentityInfo(
+                user_id="compromised_user_88",
+                session_id="stolen-session-token-9988",
+                roles=["customer"],
+                is_authenticated=True,
+            )
+        elif evt_type in ("fake_shopping", "fraudulent_website"):
+            id_info = IdentityInfo(
+                user_id="shopper_victim_45",
+                session_id="fake-shop-sess-771",
+                roles=["customer"],
+                is_authenticated=False,
+            )
+        elif evt_type in ("fake_bank", "suspicious_url"):
+            id_info = IdentityInfo(
+                user_id="targeted_bank_customer",
+                session_id="fake-bank-sess-990",
+                roles=["banking_user"],
+                is_authenticated=False,
+            )
+        else:
+            id_info = IdentityInfo(
+                user_id=self.username,
+                roles=["workstation_user"],
+                is_authenticated=True,
+            )
 
-        req_info = request_info or RequestInfo(
-            method="POST",
-            endpoint="/endpoint/telemetry",
-        )
+        if request_info is not None:
+            req_info = request_info
+        elif evt_type in ("unauthorized_transaction", "transaction_abuse"):
+            req_info = RequestInfo(
+                method="POST",
+                endpoint="/api/transactions/transfer",
+                headers={"X-Session-State": "replayed", "Authorization": "Bearer hijacked-token-demo"},
+                body={"recipient_account": "ACC-UNKNOWN-999", "amount": 9500.0, "currency": "USD", "action": "unauthorized_transfer"},
+            )
+        elif evt_type in ("fake_shopping", "fraudulent_website"):
+            req_info = RequestInfo(
+                method="POST",
+                endpoint="/api/shopping/checkout",
+                headers={"Host": "fake-shopping-deals-mall.xyz"},
+                query_params={"url": "http://fake-shopping-deals-mall.xyz/deals", "category": "fraudulent_store"},
+                body={"merchant": "SuperDiscountMall-Fraudulent", "cart_total": 12.99, "suspected_phishing": True},
+            )
+        elif evt_type in ("fake_bank", "suspicious_url"):
+            req_info = RequestInfo(
+                method="GET",
+                endpoint="/api/banking/login",
+                headers={"Host": "secure-login-verify-bank-account.info"},
+                query_params={"url": "http://secure-login-verify-bank-account.info/login", "suspicious_domain": "secure-login-verify-bank-account.info"},
+                body={"phishing_domain": "secure-login-verify-bank-account.info", "fake_brand": "FirstNationalDemoBank"},
+            )
+        else:
+            req_info = RequestInfo(
+                method="POST",
+                endpoint="/endpoint/telemetry",
+            )
 
         resp_info = response_info or ResponseInfo(
             status_code=200,
         )
+
+        if resource_info is not None:
+            res_info = resource_info
+        elif evt_type in ("unauthorized_transaction", "transaction_abuse"):
+            res_info = ResourceInfo(
+                resource_type="transaction",
+                resource_id="tx-unauth-8821",
+                owner_id="victim_account_12",
+                is_sensitive=True,
+            )
+        elif evt_type in ("fake_shopping", "fraudulent_website"):
+            res_info = ResourceInfo(
+                resource_type="shopping_session",
+                resource_id="fake-mall-order-332",
+                owner_id="shopper_victim_45",
+                is_sensitive=True,
+            )
+        elif evt_type in ("fake_bank", "suspicious_url"):
+            res_info = ResourceInfo(
+                resource_type="bank_account",
+                resource_id="fake-bank-portal",
+                owner_id="targeted_bank_customer",
+                is_sensitive=True,
+            )
+        else:
+            res_info = ResourceInfo(
+                resource_type="workstation",
+                resource_id=self.hostname,
+            )
 
         return ApiSecurityEvent(
             schema_version="1.0",
@@ -292,10 +458,7 @@ class LaptopAgent:
             identity=id_info,
             request=req_info,
             response=resp_info,
-            resource=ResourceInfo(
-                resource_type="workstation",
-                resource_id=self.hostname,
-            ),
+            resource=res_info,
             endpoint=endpoint_info,
         )
 
@@ -331,6 +494,12 @@ def parse_args(args: Optional[list[str]] = None) -> argparse.Namespace:
             "keylogging",
             "reverse_shell",
             "privilege_escalation",
+            "unauthorized_transaction",
+            "transaction_abuse",
+            "fake_shopping",
+            "fraudulent_website",
+            "fake_bank",
+            "suspicious_url",
         ],
         default=None,
         help="Attack scenario to simulate (required if --mode is 'simulate').",
@@ -377,6 +546,12 @@ def main(cli_args: Optional[list[str]] = None) -> int:
             "keylogging": agent.simulate_keylogging,
             "reverse_shell": agent.simulate_reverse_shell,
             "privilege_escalation": agent.simulate_privilege_escalation,
+            "unauthorized_transaction": agent.simulate_unauthorized_transaction,
+            "transaction_abuse": agent.simulate_unauthorized_transaction,
+            "fake_shopping": agent.simulate_fake_shopping,
+            "fraudulent_website": agent.simulate_fake_shopping,
+            "fake_bank": agent.simulate_fake_bank,
+            "suspicious_url": agent.simulate_fake_bank,
         }
         simulator_fn = scenario_map[args.scenario]
         telemetry = simulator_fn()

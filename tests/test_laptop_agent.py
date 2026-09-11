@@ -83,6 +83,62 @@ class TestLaptopAgent(unittest.TestCase):
         self.assertEqual(event.endpoint.privilege_level, "SYSTEM")
         self.assertEqual(event.domain, "ENDPOINT")
 
+    def test_unauthorized_transaction_simulation_produces_valid_event(self) -> None:
+        """Requirement: Verify unauthorized transaction simulation produces valid telemetry and event."""
+        telemetry = self.agent.simulate_unauthorized_transaction()
+        self.assertEqual(telemetry.event_type, "unauthorized_transaction")
+        self.assertTrue(telemetry.network_connection)
+        self.assertEqual(telemetry.process_name, "browser_automation.exe")
+
+        # Alias test
+        alias_telem = self.agent.simulate_transaction_abuse()
+        self.assertEqual(alias_telem.event_type, "unauthorized_transaction")
+
+        event = self.agent.build_event(telemetry)
+        self.assertIsInstance(event, ApiSecurityEvent)
+        self.assertEqual(event.domain, "ENDPOINT")
+        self.assertEqual(event.request.endpoint, "/api/transactions/transfer")
+        self.assertEqual(event.resource.resource_type, "transaction")
+        self.assertTrue(event.resource.is_sensitive)
+        self.assertTrue(event.identity.is_authenticated)
+
+    def test_fake_shopping_simulation_produces_valid_event(self) -> None:
+        """Requirement: Verify fake shopping simulation produces valid telemetry and event."""
+        telemetry = self.agent.simulate_fake_shopping()
+        self.assertEqual(telemetry.event_type, "fake_shopping")
+        self.assertTrue(telemetry.network_connection)
+        self.assertIn("fake-shopping", telemetry.command_line)
+
+        # Alias test
+        alias_telem = self.agent.simulate_fraudulent_website()
+        self.assertEqual(alias_telem.event_type, "fake_shopping")
+
+        event = self.agent.build_event(telemetry)
+        self.assertIsInstance(event, ApiSecurityEvent)
+        self.assertEqual(event.domain, "ENDPOINT")
+        self.assertEqual(event.request.endpoint, "/api/shopping/checkout")
+        self.assertEqual(event.resource.resource_type, "shopping_session")
+        self.assertTrue(event.resource.is_sensitive)
+
+    def test_fake_bank_simulation_produces_valid_event(self) -> None:
+        """Requirement: Verify fake bank / suspicious URL simulation produces valid telemetry and event."""
+        telemetry = self.agent.simulate_fake_bank()
+        self.assertEqual(telemetry.event_type, "fake_bank")
+        self.assertTrue(telemetry.network_connection)
+        self.assertEqual(telemetry.process_name, "chrome.exe")
+        self.assertEqual(telemetry.parent_process, "outlook.exe")
+
+        # Alias test
+        alias_telem = self.agent.simulate_suspicious_url()
+        self.assertEqual(alias_telem.event_type, "fake_bank")
+
+        event = self.agent.build_event(telemetry)
+        self.assertIsInstance(event, ApiSecurityEvent)
+        self.assertEqual(event.domain, "ENDPOINT")
+        self.assertEqual(event.request.endpoint, "/api/banking/login")
+        self.assertEqual(event.resource.resource_type, "bank_account")
+        self.assertTrue(event.resource.is_sensitive)
+
     def test_all_generated_events_pass_pydantic_validation(self) -> None:
         """Requirement 6: Verify all modes produce valid Pydantic ApiSecurityEvents."""
         scenarios = [
@@ -91,6 +147,9 @@ class TestLaptopAgent(unittest.TestCase):
             self.agent.simulate_keylogging(),
             self.agent.simulate_reverse_shell(),
             self.agent.simulate_privilege_escalation(),
+            self.agent.simulate_unauthorized_transaction(),
+            self.agent.simulate_fake_shopping(),
+            self.agent.simulate_fake_bank(),
         ]
 
         for idx, telem in enumerate(scenarios):
@@ -157,7 +216,18 @@ class TestLaptopAgent(unittest.TestCase):
             parse_args(["--mode", "simulate"])
 
         # 3. Valid scenarios parse cleanly
-        for scen in ["suspicious_process", "keylogging", "reverse_shell", "privilege_escalation"]:
+        for scen in [
+            "suspicious_process",
+            "keylogging",
+            "reverse_shell",
+            "privilege_escalation",
+            "unauthorized_transaction",
+            "transaction_abuse",
+            "fake_shopping",
+            "fraudulent_website",
+            "fake_bank",
+            "suspicious_url",
+        ]:
             args = parse_args(["--mode", "simulate", "--scenario", scen])
             self.assertEqual(args.scenario, scen)
 
