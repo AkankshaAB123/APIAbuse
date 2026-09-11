@@ -383,10 +383,33 @@ def prepare_features(features, scaler):
             scaler.feature_names_in_
         )
 
+        # Prepared CICIDS files use safe names such as ``Flow_Duration`` while
+        # the multiclass artifact was fitted with the source name
+        # ``Flow Duration``.  Treat punctuation, whitespace and case as a
+        # presentation difference only, without accepting ambiguous inputs.
+        def canonical_feature_name(name):
+            return "".join(
+                character.lower()
+                for character in str(name)
+                if character.isalnum()
+            )
+
+        canonical_columns = {}
+        for column in X.columns:
+            canonical = canonical_feature_name(column)
+            if canonical in canonical_columns:
+                raise ValueError(
+                    "Ambiguous feature names after normalization: "
+                    + str(column)
+                    + " and "
+                    + str(canonical_columns[canonical])
+                )
+            canonical_columns[canonical] = column
+
         missing_features = [
             feature
             for feature in expected_features
-            if feature not in X.columns
+            if canonical_feature_name(feature) not in canonical_columns
         ]
 
         if missing_features:
@@ -396,12 +419,10 @@ def prepare_features(features, scaler):
                 + str(missing_features)
             )
 
-        # Keep exactly the same feature order
-        # used when training the model.
-
-        X = X[
-            expected_features
-        ]
+        # Keep exactly the same feature order and labels used when training the
+        # model, even when callers supplied normalized prepared-data labels.
+        X = X[[canonical_columns[canonical_feature_name(feature)] for feature in expected_features]]
+        X.columns = expected_features
 
     return X
 

@@ -25,6 +25,7 @@ from api_detection.detectors import (
     detect_sql_injection,
     detect_ssrf,
     detect_suspicious_process_execution,
+    detect_xss,
 )
 
 
@@ -63,6 +64,11 @@ def run_all_detectors(
         ),
 
         detect_sql_injection(
+            event,
+            recent_events,
+        ),
+
+        detect_xss(
             event,
             recent_events,
         ),

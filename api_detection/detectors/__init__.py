@@ -24,6 +24,7 @@ from .suspicious_process_execution import (
 )
 from .reverse_shell import detect_reverse_shell
 from .privilege_escalation import detect_privilege_escalation
+from .xss import detect_xss
 
 __all__ = [
     "detect_account_takeover",
@@ -44,4 +45,5 @@ __all__ = [
     "detect_suspicious_process_execution",
     "detect_reverse_shell",
     "detect_privilege_escalation",
+    "detect_xss",
 ]

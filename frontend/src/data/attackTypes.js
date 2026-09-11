@@ -9,6 +9,7 @@ export const ATTACK_TYPES = [
   "Business Flow Abuse",
   "API Reconnaissance / Endpoint Enumeration",
   "Security Misconfiguration",
+  "Cross-Site Scripting (XSS)",
 ];
 
 export const ATTACK_FILTER_OPTIONS = [
@@ -28,6 +29,7 @@ export const ATTACK_FILTER_OPTIONS = [
     label: "API Reconnaissance / Endpoint Enumeration",
   },
   { value: "SECURITY_MISCONFIGURATION", label: "Security Misconfiguration" },
+  { value: "XSS", label: "Cross-Site Scripting (XSS)" },
 ];
 
 export function formatAttackType(type) {

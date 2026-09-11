@@ -161,6 +161,18 @@ const attackScenarios = [
       user_id: "user_70",
     },
   },
+
+  {
+    id: "custom-xss",
+    name: "Custom XSS Sandbox",
+    description:
+      "Live interactive XSS demonstration. Custom input will be sent to a vulnerable endpoint and analyzed by the IDS.",
+    method: "GET",
+    endpoint: "/workshop/xss-demo",
+    payload: {
+      q: "<script>alert('XSS')</script>"
+    },
+  },
 ];
 
 
@@ -558,6 +570,12 @@ function AttackSimulation() {
     setLatestResult
   ] = useState(null);
 
+  // Custom XSS fields
+  const [customXssMethod, setCustomXssMethod] = useState("GET");
+  const [customXssEndpoint, setCustomXssEndpoint] = useState("/workshop/xss-demo");
+  const [customXssParam, setCustomXssParam] = useState("q");
+  const [customXssPayload, setCustomXssPayload] = useState("<script>alert('XSS')</script>");
+  const [xssHtml, setXssHtml] = useState("");
 
   /* =======================================================
      RUN SIMULATION
@@ -1213,6 +1231,47 @@ function AttackSimulation() {
 
 
         /* =================================================
+           CUSTOM XSS WORKSHOP
+        ================================================= */
+
+        else if (
+          selectedAttack.id ===
+          "custom-xss"
+        ) {
+          setLogs(
+            previous => [
+              ...previous,
+              "> Sending live HTTP request to vulnerable endpoint...",
+            ]
+          );
+
+          setXssHtml(""); // Clear previous sandbox
+
+          let url = `http://localhost:8000${customXssEndpoint}`;
+          let fetchOptions = {
+             method: customXssMethod,
+             headers: {
+                "Content-Type": "application/json"
+             }
+          };
+
+          if (customXssMethod === "GET") {
+             url += `?${encodeURIComponent(customXssParam)}=${encodeURIComponent(customXssPayload)}`;
+          } else {
+             fetchOptions.body = JSON.stringify({
+                [customXssParam]: customXssPayload
+             });
+          }
+
+          const response = await fetch(url, fetchOptions);
+          const data = await response.json();
+          
+          setXssHtml(data.html);
+          result = data.result;
+        }
+
+
+        /* =================================================
            VALIDATE BACKEND RESULT
         ================================================= */
 
@@ -1621,62 +1680,108 @@ function AttackSimulation() {
 
             {/* REQUEST */}
 
-            <div className="request-section">
-
-              <div className="section-label">
-                PREDEFINED REQUEST
+            {selectedAttack.id === "custom-xss" ? (
+              <div className="request-section">
+                <div className="section-label">LIVE XSS CONFIGURATION</div>
+                <div className="request-box">
+                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                     <div>
+                       <label>HTTP Method:</label>
+                       <select value={customXssMethod} onChange={e => setCustomXssMethod(e.target.value)} style={{marginLeft: '10px', background: '#11172a', color: '#f5f7ff', padding: '5px', borderRadius: '4px', border: '1px solid #39446f'}}>
+                         <option>GET</option>
+                         <option>POST</option>
+                       </select>
+                     </div>
+                     <div>
+                       <label>Endpoint:</label>
+                       <input value={customXssEndpoint} onChange={e => setCustomXssEndpoint(e.target.value)} style={{marginLeft: '10px', width: '250px', background: '#11172a', color: '#f5f7ff', padding: '5px', borderRadius: '4px', border: '1px solid #39446f'}} />
+                     </div>
+                     <div>
+                       <label>Parameter:</label>
+                       <input value={customXssParam} onChange={e => setCustomXssParam(e.target.value)} style={{marginLeft: '10px', background: '#11172a', color: '#f5f7ff', padding: '5px', borderRadius: '4px', border: '1px solid #39446f'}} />
+                     </div>
+                     <div>
+                       <label>Payload:</label>
+                       <textarea value={customXssPayload} onChange={e => setCustomXssPayload(e.target.value)} style={{marginTop: '10px', width: '100%', height: '80px', background: '#11172a', color: '#f5f7ff', padding: '10px', borderRadius: '4px', border: '1px solid #39446f'}} />
+                     </div>
+                   </div>
+                </div>
+                {xssHtml && (
+                   <div style={{ marginTop: '20px' }}>
+                     <div className="section-label">XSS WORKSHOP SANDBOX</div>
+                     <div style={{ padding: '10px', backgroundColor: '#0f172a', border: '1px solid #39446f', borderRadius: '6px' }}>
+                       <div style={{ marginBottom: '10px', fontSize: '12px', color: '#a5acc5' }}>
+                         Request received ✓<br/>
+                         User-controlled input reached rendering point ✓<br/>
+                         IDS status: {latestResult ? (latestResult.risk_assessment?.threat_detected ? "XSS DETECTED" : "NO THREAT") : "ANALYZING..."}<br/>
+                         Response: {latestResult ? (latestResult.mitigation_action) : "..."}
+                       </div>
+                       <iframe 
+                         title="xss-sandbox" 
+                         srcDoc={xssHtml} 
+                         style={{ width: '100%', height: '150px', border: '1px solid #1e293b', background: 'white' }} 
+                       />
+                     </div>
+                   </div>
+                )}
               </div>
+            ) : (
+              <div className="request-section">
+
+                <div className="section-label">
+                  PREDEFINED REQUEST
+                </div>
 
 
-              <div className="request-box">
+                <div className="request-box">
 
-                <div className="request-line">
+                  <div className="request-line">
 
-                  <span className="method">
+                    <span className="method">
+
+                      {
+                        selectedAttack.method
+                      }
+
+                    </span>
+
+
+                    <span>
+
+                      {
+                        getDisplayEndpoint(
+                          selectedAttack
+                        )
+                      }
+
+                    </span>
+
+                  </div>
+
+
+                  <div className="request-user">
+
+                    Controlled demonstration payload
+
+                  </div>
+
+
+                  <pre>
 
                     {
-                      selectedAttack.method
-                    }
-
-                  </span>
-
-
-                  <span>
-
-                    {
-                      getDisplayEndpoint(
-                        selectedAttack
+                      JSON.stringify(
+                        selectedAttack.payload,
+                        null,
+                        2
                       )
                     }
 
-                  </span>
+                  </pre>
 
                 </div>
-
-
-                <div className="request-user">
-
-                  Controlled demonstration payload
-
-                </div>
-
-
-                <pre>
-
-                  {
-                    JSON.stringify(
-                      selectedAttack.payload,
-                      null,
-                      2
-                    )
-                  }
-
-                </pre>
 
               </div>
-
-            </div>
-
+            )}
 
             {/* EXECUTE BUTTON */}
 
