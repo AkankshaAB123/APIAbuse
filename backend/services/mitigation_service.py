@@ -36,7 +36,6 @@ class MitigationService:
         # 1. Endpoint compromise -> QUARANTINE
         if (
             primary_impact == "endpoint compromise"
-            or (event is not None and event.domain == "ENDPOINT")
             or any(
                 at in {
                     "KEYLOGGING",

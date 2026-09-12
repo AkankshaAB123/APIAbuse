@@ -118,7 +118,8 @@ class EventProcessor:
 
             try:
                 ml_result = self.ml_service.detect(
-                    ml_features
+                    ml_features,
+                    event_id=event.event_id,
                 )
             except Exception as exc:
                 print(

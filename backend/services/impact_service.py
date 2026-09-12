@@ -88,9 +88,7 @@ class ImpactService:
 
         # 1. Endpoint Compromise
         is_endpoint = (
-            event.domain == "ENDPOINT"
-            or any(r.domain == "ENDPOINT" for r in detected_results)
-            or bool(
+            bool(
                 attack_types.intersection(
                     {
                         "KEYLOGGING",

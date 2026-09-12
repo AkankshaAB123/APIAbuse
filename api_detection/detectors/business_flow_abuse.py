@@ -22,6 +22,11 @@ SENSITIVE_ENDPOINT_PREFIXES = (
     "/api/checkout",
 )
 
+FAKE_SHOPPING_EVENT_TYPES = (
+    "fake_shopping",
+    "fraudulent_website",
+)
+
 
 def _is_sensitive_business_action(
     event: ApiSecurityEvent,
@@ -38,14 +43,60 @@ def _is_sensitive_business_action(
     )
 
 
+def _get_endpoint_event_type(
+    event: ApiSecurityEvent,
+) -> str | None:
+    endpoint = getattr(event, "endpoint", None)
+    if endpoint is None and isinstance(event, dict):
+        endpoint = event.get("endpoint")
+    if endpoint is None:
+        return None
+    if isinstance(endpoint, dict):
+        return endpoint.get("event_type")
+    return getattr(endpoint, "event_type", None)
+
+
+def _is_fake_shopping_event(
+    event: ApiSecurityEvent,
+) -> bool:
+    """
+    Return True when endpoint telemetry indicates a fake shopping
+    or fraudulent store scenario.
+    """
+    event_type = _get_endpoint_event_type(event)
+    return event_type in FAKE_SHOPPING_EVENT_TYPES
+
+
 def detect_business_flow_abuse(
     event: ApiSecurityEvent,
     recent_events: Sequence[ApiSecurityEvent] = (),
 ) -> DetectorResult:
     """
     Detect excessive repetition of sensitive business actions
-    by the same authenticated user.
+    by the same authenticated user, or suspected fraudulent shopping checkout.
     """
+
+    if _is_fake_shopping_event(event):
+        event_type = _get_endpoint_event_type(event)
+        return DetectorResult(
+            event_id=event.event_id,
+            detector_id="business_flow_abuse",
+            detected=True,
+            attack_type=AttackType.BUSINESS_FLOW_ABUSE,
+            confidence=0.85,
+            severity=Severity.HIGH,
+            evidence=(
+                Evidence(
+                    code="FRAUDULENT_SHOPPING_SITE",
+                    message="Suspected fraudulent shopping checkout detected.",
+                ),
+            ),
+            metadata={
+                "action_count": 1,
+                "threshold": 1,
+                "event_type": event_type,
+            },
+        )
 
     user_id = event.identity.user_id
 
