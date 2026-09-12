@@ -7,6 +7,28 @@ from pydantic import BaseModel, Field
 class NetworkInfo(BaseModel):
     source_ip: str
     user_agent: str
+    destination_ip: str | None = None
+    source_port: int | None = None
+    destination_port: int | None = None
+    protocol: str | None = None
+    bytes: int | None = None
+    packets: int | None = None
+    connection_status: str | None = None
+
+
+class EndpointInfo(BaseModel):
+    event_type: str | None = None
+    hostname: str | None = None
+    username: str | None = None
+    process_name: str | None = None
+    process_id: int | None = None
+    parent_process: str | None = None
+    executable_path: str | None = None
+    command_line: str | None = None
+    privilege_level: str | None = None
+    keyboard_hook: bool | None = None
+    network_connection: bool | None = None
+    elevated: bool | None = None
 
 
 class IdentityInfo(BaseModel):
@@ -47,3 +69,4 @@ class ApiSecurityEvent(BaseModel):
     request: RequestInfo
     response: ResponseInfo
     resource: ResourceInfo
+    endpoint: EndpointInfo | None = None

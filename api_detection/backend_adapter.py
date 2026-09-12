@@ -12,6 +12,7 @@ from typing import Any
 
 from .contracts import (
     ApiSecurityEvent,
+    EndpointInfo,
     IdentityInfo,
     NetworkInfo,
     RequestInfo,
@@ -29,6 +30,7 @@ def adapt_backend_event(event: Any) -> ApiSecurityEvent:
     request = _as_mapping(payload["request"])
     response = _as_mapping(payload["response"])
     resource = _as_mapping(payload["resource"])
+    endpoint = payload.get("endpoint")
     timestamp = payload["timestamp"]
 
     return ApiSecurityEvent(
@@ -38,6 +40,13 @@ def adapt_backend_event(event: Any) -> ApiSecurityEvent:
         network=NetworkInfo(
             source_ip=str(network["source_ip"]),
             user_agent=network.get("user_agent"),
+            destination_ip=network.get("destination_ip"),
+            source_port=network.get("source_port"),
+            destination_port=network.get("destination_port"),
+            protocol=network.get("protocol"),
+            bytes=network.get("bytes"),
+            packets=network.get("packets"),
+            connection_status=network.get("connection_status"),
         ),
         identity=IdentityInfo(
             user_id=identity.get("user_id"),
@@ -62,6 +71,11 @@ def adapt_backend_event(event: Any) -> ApiSecurityEvent:
             resource_id=resource.get("resource_id"),
             owner_id=resource.get("owner_id"),
             is_sensitive=bool(resource.get("is_sensitive", False)),
+        ),
+        endpoint=(
+            EndpointInfo(**dict(_as_mapping(endpoint)))
+            if endpoint is not None
+            else None
         ),
     )
 

@@ -135,7 +135,7 @@ def test_processing_result_is_persisted(clean_test_events):
 
     assert stored_event is not None
     assert "processing" in stored_event
-    assert len(stored_event["processing"]["detector_results"]) == 10
+    assert len(stored_event["processing"]["detector_results"]) == 18
     assert stored_event["processing"]["risk_assessment"]["risk_level"] == "CRITICAL"
     assert stored_event["processing"]["mitigation_action"] == "BLOCK"
 
