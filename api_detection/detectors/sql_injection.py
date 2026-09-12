@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import urllib.parse
 from collections.abc import Iterable, Sequence
 from typing import Any
 
@@ -18,14 +19,36 @@ from ..rules.sql_injection import SQL_INJECTION_PATTERNS, SQL_INJECTION_RULE_VER
 DETECTOR_ID = "sql_injection"
 
 
+def normalize_value(value: str) -> str:
+    """Safely normalize request value using repeated URL percent-decoding and whitespace collapsing."""
+    if not isinstance(value, str):
+        value = str(value)
+
+    current = value
+    for _ in range(3):
+        try:
+            decoded = urllib.parse.unquote(current)
+        except Exception:
+            break
+        if decoded == current:
+            break
+        current = decoded
+
+    current = current.replace("\x00", "")
+    return re.sub(r"\s+", " ", current).strip()
+
+
 def detect_sql_injection(
     event: ApiSecurityEvent, recent_events: Sequence[ApiSecurityEvent] = ()
 ) -> DetectorResult:
     """Inspect incoming API parameter values for high-confidence SQLi signatures."""
     del recent_events
-    for field_name, value in _request_values(event):
+    for field_name, raw_value in _request_values(event):
+        normalized = normalize_value(raw_value)
         for code, pattern in SQL_INJECTION_PATTERNS:
-            if re.search(pattern, value, flags=re.IGNORECASE):
+            if re.search(pattern, normalized, flags=re.IGNORECASE) or re.search(
+                pattern, raw_value, flags=re.IGNORECASE
+            ):
                 return DetectorResult(
                     event_id=event.event_id,
                     detector_id=DETECTOR_ID,

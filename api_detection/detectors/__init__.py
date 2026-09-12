@@ -18,6 +18,7 @@ from .ddos import detect_ddos
 from .dos_flooding import detect_dos_flooding
 from .network_brute_force import detect_network_brute_force
 from .port_scanning import detect_port_scanning
+from .fake_bank import detect_fake_bank
 from .keylogging import detect_keylogging
 from .suspicious_process_execution import (
     detect_suspicious_process_execution,
@@ -35,6 +36,7 @@ __all__ = [
     "detect_resource_exhaustion",
     "detect_security_misconfiguration",
     "detect_sql_injection",
+    "detect_fake_bank",
     "detect_ssrf",
     "detect_ddos",
     "detect_dos_flooding",

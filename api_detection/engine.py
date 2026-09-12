@@ -25,6 +25,7 @@ from api_detection.detectors import (
     detect_sql_injection,
     detect_ssrf,
     detect_suspicious_process_execution,
+    detect_fake_bank,
 )
 
 
@@ -77,7 +78,11 @@ def run_all_detectors(
             recent_events,
         ),
 
-        detect_business_flow_abuse(
+        detect_fake_shopping(
+            event,
+            recent_events,
+        ),
+        detect_fake_bank(
             event,
             recent_events,
         ),

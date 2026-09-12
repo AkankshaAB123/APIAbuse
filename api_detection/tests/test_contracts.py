@@ -12,7 +12,10 @@ from api_detection.contracts import (
     DetectorResult,
     EndpointInfo,
     Evidence,
+    IdentityInfo,
     NetworkInfo,
+    RequestInfo,
+    ResourceInfo,
     Severity,
 )
 
@@ -233,38 +236,265 @@ class DetectorContractTests(unittest.TestCase):
     # BOLA / IDOR
     # --------------------------------------------------
 
+    # --------------------------------------------------
+    # BOLA / IDOR - POSITIVE TESTS
+    # --------------------------------------------------
+
     def test_bola_idor_detects_a_resource_owner_mismatch(self) -> None:
+        """1. Authenticated user accessing another user's sensitive resource."""
         result = detect_bola_idor(
             bola_idor_event()
         )
 
         self.assertTrue(result.detected)
-
         self.assertEqual(
             result.attack_type,
             AttackType.BOLA_IDOR,
         )
-
         self.assertEqual(
             result.severity,
             Severity.CRITICAL,
         )
-
+        self.assertEqual(
+            result.confidence,
+            0.97,
+        )
         self.assertEqual(
             result.evidence[0].code,
             "RESOURCE_OWNER_MISMATCH",
         )
+        self.assertIn("user_17", result.evidence[0].message)
+        self.assertIn("user_42", result.evidence[0].message)
+        self.assertIn("order 42", result.evidence[0].message)
+        self.assertIn("Ownership mismatch", result.evidence[0].message)
+
+    def test_bola_idor_detects_non_sensitive_resource_mismatch(self) -> None:
+        """2. Authenticated user accessing another user's non-sensitive resource."""
+        event = replace(
+            normal_event("evt-bola-nonsensitive"),
+            resource=ResourceInfo(
+                resource_type="document",
+                resource_id="doc_101",
+                owner_id="user_42",
+                is_sensitive=False,
+            ),
+        )
+        result = detect_bola_idor(event)
+
+        self.assertTrue(result.detected)
+        self.assertEqual(result.attack_type, AttackType.BOLA_IDOR)
+        self.assertEqual(result.severity, Severity.HIGH)
+        self.assertEqual(result.confidence, 0.97)
+        self.assertEqual(result.evidence[0].code, "RESOURCE_OWNER_MISMATCH")
+        self.assertIn("document doc_101", result.evidence[0].message)
+
+    def test_bola_idor_detects_nested_request_ownership_info(self) -> None:
+        """3. Resource ownership resolved from request payload context."""
+        event = replace(
+            normal_event("evt-bola-nested"),
+            request=RequestInfo(
+                method="POST",
+                endpoint="/api/orders/transfer",
+                body={
+                    "target_user_id": "user_42",
+                    "object_id": "transfer_789",
+                },
+            ),
+            resource=ResourceInfo(
+                resource_type="order",
+                resource_id=None,
+                owner_id=None,
+                is_sensitive=True,
+            ),
+        )
+        result = detect_bola_idor(event)
+
+        self.assertTrue(result.detected)
+        self.assertEqual(result.attack_type, AttackType.BOLA_IDOR)
+        self.assertEqual(result.severity, Severity.CRITICAL)
+        self.assertEqual(result.confidence, 0.97)
+        self.assertEqual(result.evidence[0].code, "RESOURCE_OWNER_MISMATCH")
+        self.assertIn("user_17", result.evidence[0].message)
+        self.assertIn("user_42", result.evidence[0].message)
+
+    def test_bola_idor_detects_different_non_privileged_users_accessing_same_resource(self) -> None:
+        """4. Different non-privileged users attempting to access the same owned resource."""
+        shared_resource = ResourceInfo(
+            resource_type="account",
+            resource_id="acc_999",
+            owner_id="victim_user",
+            is_sensitive=True,
+        )
+
+        for attacker_id in ["attacker_alpha", "attacker_beta", "attacker_gamma"]:
+            event = replace(
+                normal_event(f"evt-bola-{attacker_id}"),
+                identity=IdentityInfo(
+                    user_id=attacker_id,
+                    roles=("customer",),
+                    is_authenticated=True,
+                ),
+                resource=shared_resource,
+            )
+            result = detect_bola_idor(event)
+
+            self.assertTrue(result.detected, f"Failed to detect BOLA for {attacker_id}")
+            self.assertEqual(result.attack_type, AttackType.BOLA_IDOR)
+            self.assertEqual(result.confidence, 0.97)
+            self.assertEqual(result.severity, Severity.CRITICAL)
+            self.assertEqual(result.evidence[0].code, "RESOURCE_OWNER_MISMATCH")
+            self.assertIn(attacker_id, result.evidence[0].message)
+            self.assertIn("victim_user", result.evidence[0].message)
+
+    # --------------------------------------------------
+    # BOLA / IDOR - NEGATIVE TESTS
+    # --------------------------------------------------
 
     def test_bola_idor_ignores_a_user_accessing_own_resource(
         self,
     ) -> None:
+        """1. User accessing their own resource."""
         result = detect_bola_idor(
             normal_event()
         )
 
         self.assertFalse(result.detected)
-
         self.assertIsNone(result.attack_type)
+        self.assertEqual(result.confidence, 0.0)
+        self.assertEqual(result.severity, Severity.LOW)
+        self.assertEqual(len(result.evidence), 0)
+
+    def test_bola_idor_ignores_unauthenticated_request(self) -> None:
+        """2. Unauthenticated request (not BOLA)."""
+        event = replace(
+            bola_idor_event("evt-unauth-bola"),
+            identity=IdentityInfo(
+                user_id=None,
+                roles=(),
+                is_authenticated=False,
+            ),
+        )
+        result = detect_bola_idor(event)
+
+        self.assertFalse(result.detected)
+        self.assertIsNone(result.attack_type)
+        self.assertEqual(result.confidence, 0.0)
+        self.assertEqual(result.severity, Severity.LOW)
+        self.assertEqual(len(result.evidence), 0)
+
+    def test_bola_idor_ignores_admin_role(self) -> None:
+        """3. Admin accessing another user's resource."""
+        event = replace(
+            bola_idor_event("evt-admin-access"),
+            identity=IdentityInfo(
+                user_id="admin_master",
+                roles=("admin",),
+                is_authenticated=True,
+            ),
+        )
+        result = detect_bola_idor(event)
+
+        self.assertFalse(result.detected)
+        self.assertIsNone(result.attack_type)
+        self.assertEqual(result.confidence, 0.0)
+        self.assertEqual(result.severity, Severity.LOW)
+        self.assertEqual(len(result.evidence), 0)
+
+    def test_bola_idor_ignores_service_role(self) -> None:
+        """4. Service role accessing another user's resource."""
+        event = replace(
+            bola_idor_event("evt-service-access"),
+            identity=IdentityInfo(
+                user_id="svc_order_processor",
+                roles=("service",),
+                is_authenticated=True,
+            ),
+        )
+        result = detect_bola_idor(event)
+
+        self.assertFalse(result.detected)
+        self.assertIsNone(result.attack_type)
+        self.assertEqual(result.confidence, 0.0)
+        self.assertEqual(result.severity, Severity.LOW)
+        self.assertEqual(len(result.evidence), 0)
+
+    def test_bola_idor_ignores_missing_user_id(self) -> None:
+        """5. Missing user_id."""
+        event = replace(
+            bola_idor_event("evt-missing-user"),
+            identity=IdentityInfo(
+                user_id=None,
+                roles=("customer",),
+                is_authenticated=True,
+            ),
+        )
+        result = detect_bola_idor(event)
+
+        self.assertFalse(result.detected)
+        self.assertIsNone(result.attack_type)
+        self.assertEqual(result.confidence, 0.0)
+        self.assertEqual(result.severity, Severity.LOW)
+        self.assertEqual(len(result.evidence), 0)
+
+    def test_bola_idor_ignores_missing_owner_id(self) -> None:
+        """6. Missing owner_id."""
+        event = replace(
+            normal_event("evt-missing-owner"),
+            resource=ResourceInfo(
+                resource_type="order",
+                resource_id="42",
+                owner_id=None,
+            ),
+        )
+        result = detect_bola_idor(event)
+
+        self.assertFalse(result.detected)
+        self.assertIsNone(result.attack_type)
+        self.assertEqual(result.confidence, 0.0)
+        self.assertEqual(result.severity, Severity.LOW)
+        self.assertEqual(len(result.evidence), 0)
+
+    def test_bola_idor_ignores_same_user_and_owner(self) -> None:
+        """7. Same user and owner."""
+        event = replace(
+            normal_event("evt-same-owner"),
+            identity=IdentityInfo(
+                user_id="user_42",
+                roles=("customer",),
+                is_authenticated=True,
+            ),
+            resource=ResourceInfo(
+                resource_type="profile",
+                resource_id="prof_42",
+                owner_id="user_42",
+            ),
+        )
+        result = detect_bola_idor(event)
+
+        self.assertFalse(result.detected)
+        self.assertIsNone(result.attack_type)
+        self.assertEqual(result.confidence, 0.0)
+        self.assertEqual(result.severity, Severity.LOW)
+        self.assertEqual(len(result.evidence), 0)
+
+    def test_bola_idor_ignores_public_non_owned_resource(self) -> None:
+        """8. Public or unowned resource."""
+        for non_owner in ["public", "system", "none", "unowned", "anonymous"]:
+            event = replace(
+                normal_event("evt-public-res"),
+                resource=ResourceInfo(
+                    resource_type="public_catalog",
+                    resource_id="cat_1",
+                    owner_id=non_owner,
+                ),
+            )
+            result = detect_bola_idor(event)
+
+            self.assertFalse(result.detected, f"Should ignore non-owned identifier: {non_owner}")
+            self.assertIsNone(result.attack_type)
+            self.assertEqual(result.confidence, 0.0)
+            self.assertEqual(result.severity, Severity.LOW)
+            self.assertEqual(len(result.evidence), 0)
 
     # --------------------------------------------------
     # Broken Function Level Authorization
@@ -473,36 +703,360 @@ class DetectorContractTests(unittest.TestCase):
         self.assertFalse(result.detected)
 
     # --------------------------------------------------
-    # SQL Injection
+    # SQL Injection - POSITIVE TESTS
     # --------------------------------------------------
 
     def test_sql_injection_detects_suspicious_query_parameter(
         self,
     ) -> None:
+        """1. Existing boolean tautology payload."""
         result = detect_sql_injection(
             sql_injection_event()
         )
 
         self.assertTrue(result.detected)
-
         self.assertEqual(
             result.attack_type,
             AttackType.SQL_INJECTION,
         )
-
         self.assertEqual(
             result.evidence[0].code,
             "BOOLEAN_TAUTOLOGY",
         )
+        self.assertIn("query_params.query", result.evidence[0].message)
+        self.assertEqual(result.confidence, 0.96)
+        self.assertEqual(result.severity, Severity.HIGH)
+
+    def test_sql_injection_detects_union_select(
+        self,
+    ) -> None:
+        """2. UNION SELECT payload."""
+        event = replace(
+            normal_event("evt-sqli-union"),
+            request=RequestInfo(
+                method="GET",
+                endpoint="/api/products",
+                query_params={
+                    "category": "books UNION SELECT id, username, password FROM users",
+                },
+            ),
+        )
+        result = detect_sql_injection(event)
+
+        self.assertTrue(result.detected)
+        self.assertEqual(result.attack_type, AttackType.SQL_INJECTION)
+        self.assertEqual(result.evidence[0].code, "UNION_SELECT")
+        self.assertIn("query_params.category", result.evidence[0].message)
+        self.assertEqual(result.confidence, 0.96)
+        self.assertEqual(result.severity, Severity.HIGH)
+
+    def test_sql_injection_detects_sql_comment_in_sql_context(
+        self,
+    ) -> None:
+        """3. SQL comment in SQL context."""
+        event = replace(
+            normal_event("evt-sqli-comment"),
+            request=RequestInfo(
+                method="POST",
+                endpoint="/api/login",
+                body={
+                    "username": "admin' --",
+                    "password": "any",
+                },
+            ),
+        )
+        result = detect_sql_injection(event)
+
+        self.assertTrue(result.detected)
+        self.assertEqual(result.attack_type, AttackType.SQL_INJECTION)
+        self.assertEqual(result.evidence[0].code, "SQL_COMMENT")
+        self.assertIn("body.username", result.evidence[0].message)
+        self.assertEqual(result.confidence, 0.96)
+        self.assertEqual(result.severity, Severity.HIGH)
+
+    def test_sql_injection_detects_information_schema(
+        self,
+    ) -> None:
+        """4. information_schema database metadata inspection."""
+        event = replace(
+            normal_event("evt-sqli-schema"),
+            request=RequestInfo(
+                method="GET",
+                endpoint="/api/items",
+                query_params={
+                    "filter": "information_schema.tables",
+                },
+            ),
+        )
+        result = detect_sql_injection(event)
+
+        self.assertTrue(result.detected)
+        self.assertEqual(result.attack_type, AttackType.SQL_INJECTION)
+        self.assertEqual(result.evidence[0].code, "DATABASE_METADATA")
+        self.assertIn("query_params.filter", result.evidence[0].message)
+        self.assertEqual(result.confidence, 0.96)
+        self.assertEqual(result.severity, Severity.HIGH)
+
+    def test_sql_injection_detects_encoded_payload(
+        self,
+    ) -> None:
+        """5. URL-percent encoded SQL injection payload."""
+        event = replace(
+            normal_event("evt-sqli-encoded"),
+            request=RequestInfo(
+                method="GET",
+                endpoint="/api/search",
+                query_params={
+                    "q": "%27%20OR%201%3D1",
+                },
+            ),
+        )
+        result = detect_sql_injection(event)
+
+        self.assertTrue(result.detected)
+        self.assertEqual(result.attack_type, AttackType.SQL_INJECTION)
+        self.assertEqual(result.evidence[0].code, "BOOLEAN_TAUTOLOGY")
+        self.assertIn("query_params.q", result.evidence[0].message)
+        self.assertEqual(result.confidence, 0.96)
+        self.assertEqual(result.severity, Severity.HIGH)
+
+    def test_sql_injection_detects_nested_json_body(
+        self,
+    ) -> None:
+        """6. Nested JSON body SQL injection."""
+        event = replace(
+            normal_event("evt-sqli-nested"),
+            request=RequestInfo(
+                method="POST",
+                endpoint="/api/orders/filter",
+                body={
+                    "filter": {
+                        "criteria": {
+                            "clause": "DROP TABLE orders",
+                        },
+                    },
+                },
+            ),
+        )
+        result = detect_sql_injection(event)
+
+        self.assertTrue(result.detected)
+        self.assertEqual(result.attack_type, AttackType.SQL_INJECTION)
+        self.assertEqual(result.evidence[0].code, "DATA_MANIPULATION")
+        self.assertIn("body.filter.criteria.clause", result.evidence[0].message)
+        self.assertEqual(result.confidence, 0.96)
+        self.assertEqual(result.severity, Severity.HIGH)
+
+    def test_sql_injection_detects_path_parameter(
+        self,
+    ) -> None:
+        """7. Path parameter SQL injection."""
+        event = replace(
+            normal_event("evt-sqli-path"),
+            request=RequestInfo(
+                method="GET",
+                endpoint="/api/users/1' OR 1=1/profile",
+                path_params={
+                    "user_id": "1' OR 1=1",
+                },
+            ),
+        )
+        result = detect_sql_injection(event)
+
+        self.assertTrue(result.detected)
+        self.assertEqual(result.attack_type, AttackType.SQL_INJECTION)
+        self.assertEqual(result.evidence[0].code, "BOOLEAN_TAUTOLOGY")
+        self.assertIn("path_params.user_id", result.evidence[0].message)
+        self.assertEqual(result.confidence, 0.96)
+        self.assertEqual(result.severity, Severity.HIGH)
+
+    def test_sql_injection_detects_time_based_delay(
+        self,
+    ) -> None:
+        """8. Time-based SQLi delay indicators: WAITFOR DELAY, SLEEP, pg_sleep."""
+        time_payloads = [
+            ("1; WAITFOR DELAY '0:0:5'", "query_params.id"),
+            ("1 AND SLEEP(5)", "query_params.id"),
+            ("1; SELECT pg_sleep(5)", "query_params.id"),
+        ]
+
+        for payload, expected_field in time_payloads:
+            event = replace(
+                normal_event("evt-sqli-time"),
+                request=RequestInfo(
+                    method="GET",
+                    endpoint="/api/items",
+                    query_params={
+                        "id": payload,
+                    },
+                ),
+            )
+            result = detect_sql_injection(event)
+
+            self.assertTrue(result.detected, f"Failed to detect time-based payload: {payload}")
+            self.assertEqual(result.attack_type, AttackType.SQL_INJECTION)
+            self.assertEqual(result.evidence[0].code, "TIME_BASED")
+            self.assertIn(expected_field, result.evidence[0].message)
+            self.assertEqual(result.confidence, 0.96)
+            self.assertEqual(result.severity, Severity.HIGH)
+
+    # --------------------------------------------------
+    # SQL Injection - NEGATIVE TESTS
+    # --------------------------------------------------
 
     def test_sql_injection_ignores_normal_request_values(
         self,
     ) -> None:
+        """Baseline normal event."""
         result = detect_sql_injection(
             normal_event()
         )
 
         self.assertFalse(result.detected)
+        self.assertIsNone(result.attack_type)
+        self.assertEqual(result.confidence, 0.0)
+        self.assertEqual(result.severity, Severity.LOW)
+        self.assertEqual(len(result.evidence), 0)
+
+    def test_sql_injection_ignores_normal_search_query(
+        self,
+    ) -> None:
+        """1. Normal search query."""
+        event = replace(
+            normal_event("evt-norm-search"),
+            request=RequestInfo(
+                method="GET",
+                endpoint="/api/products/search",
+                query_params={
+                    "query": "laptop computer monitor",
+                },
+            ),
+        )
+        result = detect_sql_injection(event)
+
+        self.assertFalse(result.detected)
+        self.assertIsNone(result.attack_type)
+        self.assertEqual(result.confidence, 0.0)
+        self.assertEqual(result.severity, Severity.LOW)
+        self.assertEqual(len(result.evidence), 0)
+
+    def test_sql_injection_ignores_normal_text_with_hyphen(
+        self,
+    ) -> None:
+        """2. Normal text containing a hyphen/dash."""
+        event = replace(
+            normal_event("evt-norm-hyphen"),
+            request=RequestInfo(
+                method="GET",
+                endpoint="/api/catalog",
+                query_params={
+                    "item": "high-performance semi-automatic widget",
+                },
+            ),
+        )
+        result = detect_sql_injection(event)
+
+        self.assertFalse(result.detected)
+        self.assertIsNone(result.attack_type)
+        self.assertEqual(result.confidence, 0.0)
+        self.assertEqual(result.severity, Severity.LOW)
+        self.assertEqual(len(result.evidence), 0)
+
+    def test_sql_injection_ignores_uuid_with_hyphens(
+        self,
+    ) -> None:
+        """3. UUID-like values containing hyphens."""
+        event = replace(
+            normal_event("evt-norm-uuid"),
+            request=RequestInfo(
+                method="GET",
+                endpoint="/api/devices/f47ac10b-58cc-4372-a567-0e02b2c3d479",
+                path_params={
+                    "device_id": "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+                },
+            ),
+        )
+        result = detect_sql_injection(event)
+
+        self.assertFalse(result.detected)
+        self.assertIsNone(result.attack_type)
+        self.assertEqual(result.confidence, 0.0)
+        self.assertEqual(result.severity, Severity.LOW)
+        self.assertEqual(len(result.evidence), 0)
+
+    def test_sql_injection_ignores_ordinary_double_dash_text(
+        self,
+    ) -> None:
+        """4. Ordinary '--' text that is not SQL context."""
+        event = replace(
+            normal_event("evt-norm-doubledash"),
+            request=RequestInfo(
+                method="POST",
+                endpoint="/api/notes",
+                body={
+                    "title": "Project Update -- Q3 Review",
+                    "cli_flags": "--verbose --dry-run",
+                },
+            ),
+        )
+        result = detect_sql_injection(event)
+
+        self.assertFalse(result.detected)
+        self.assertIsNone(result.attack_type)
+        self.assertEqual(result.confidence, 0.0)
+        self.assertEqual(result.severity, Severity.LOW)
+        self.assertEqual(len(result.evidence), 0)
+
+    def test_sql_injection_ignores_normal_json_body(
+        self,
+    ) -> None:
+        """5. Normal JSON body."""
+        event = replace(
+            normal_event("evt-norm-body"),
+            request=RequestInfo(
+                method="POST",
+                endpoint="/api/users",
+                body={
+                    "name": "Alice Smith",
+                    "email": "alice@example.com",
+                    "roles": ["developer", "reviewer"],
+                    "profile": {
+                        "age": 28,
+                        "bio": "Software engineer working on distributed systems.",
+                    },
+                },
+            ),
+        )
+        result = detect_sql_injection(event)
+
+        self.assertFalse(result.detected)
+        self.assertIsNone(result.attack_type)
+        self.assertEqual(result.confidence, 0.0)
+        self.assertEqual(result.severity, Severity.LOW)
+        self.assertEqual(len(result.evidence), 0)
+
+    def test_sql_injection_ignores_normal_url_path(
+        self,
+    ) -> None:
+        """6. Normal URL/path."""
+        event = replace(
+            normal_event("evt-norm-path"),
+            request=RequestInfo(
+                method="GET",
+                endpoint="/api/v1/organizations/corp-123/departments/eng-456/members",
+                path_params={
+                    "org_id": "corp-123",
+                    "dept_id": "eng-456",
+                },
+            ),
+        )
+        result = detect_sql_injection(event)
+
+        self.assertFalse(result.detected)
+        self.assertIsNone(result.attack_type)
+        self.assertEqual(result.confidence, 0.0)
+        self.assertEqual(result.severity, Severity.LOW)
+        self.assertEqual(len(result.evidence), 0)
 
     # --------------------------------------------------
     # SSRF
@@ -548,6 +1102,100 @@ class DetectorContractTests(unittest.TestCase):
 
         self.assertFalse(result.detected)
 
+    # --------------------------------------------------
+    # SSRF - Additional Tests
+    # --------------------------------------------------
+
+    def test_ssrf_detects_localhost(self):
+        event = replace(
+            normal_event(),
+            request=replace(
+                normal_event().request,
+                body={"callback_url": "http://localhost/"},
+            ),
+        )
+        result = detect_ssrf(event)
+        self.assertTrue(result.detected)
+        self.assertEqual(result.attack_type, AttackType.SSRF)
+        self.assertEqual(result.evidence[0].code, "LOOPBACK_TARGET")
+
+    def test_ssrf_detects_ipv4_loopback(self):
+        event = replace(
+            normal_event(),
+            request=replace(
+                normal_event().request,
+                body={"callback_url": "http://127.0.0.1/"},
+            ),
+        )
+        result = detect_ssrf(event)
+        self.assertTrue(result.detected)
+        self.assertEqual(result.attack_type, AttackType.SSRF)
+        self.assertEqual(result.evidence[0].code, "LOOPBACK_TARGET")
+
+    def test_ssrf_detects_ipv6_loopback(self):
+        event = replace(
+            normal_event(),
+            request=replace(
+                normal_event().request,
+                body={"callback_url": "http://[::1]/"},
+            ),
+        )
+        result = detect_ssrf(event)
+        self.assertTrue(result.detected)
+        self.assertEqual(result.attack_type, AttackType.SSRF)
+        self.assertEqual(result.evidence[0].code, "LOOPBACK_TARGET")
+
+    def test_ssrf_detects_private_ipv4(self):
+        event = replace(
+            normal_event(),
+            request=replace(
+                normal_event().request,
+                body={"callback_url": "http://10.0.0.5/"},
+            ),
+        )
+        result = detect_ssrf(event)
+        self.assertTrue(result.detected)
+        self.assertEqual(result.attack_type, AttackType.SSRF)
+        self.assertEqual(result.evidence[0].code, "PRIVATE_NETWORK_TARGET")
+
+    def test_ssrf_detects_percent_encoded(self):
+        event = replace(
+            normal_event(),
+            request=replace(
+                normal_event().request,
+                body={"callback_url": "%68%74%74%70%3A%2F%2F%31%36%39%2E%32%35%34%2E%31%36%39%2E%32%35%34%2F"},
+            ),
+        )
+        result = detect_ssrf(event)
+        self.assertTrue(result.detected)
+        self.assertEqual(result.attack_type, AttackType.SSRF)
+        self.assertEqual(result.evidence[0].code, "CLOUD_METADATA_TARGET")
+
+    def test_ssrf_detects_scheme_less_url(self):
+        event = replace(
+            normal_event(),
+            request=replace(
+                normal_event().request,
+                body={"callback_url": "169.254.169.254/latest/meta-data/"},
+            ),
+        )
+        result = detect_ssrf(event)
+        self.assertTrue(result.detected)
+        self.assertEqual(result.attack_type, AttackType.SSRF)
+        self.assertEqual(result.evidence[0].code, "CLOUD_METADATA_TARGET")
+
+    def test_ssrf_detects_restricted_protocol(self):
+        event = replace(
+            normal_event(),
+            request=replace(
+                normal_event().request,
+                body={"callback_url": "file:///etc/passwd"},
+            ),
+        )
+        result = detect_ssrf(event)
+        self.assertTrue(result.detected)
+        self.assertEqual(result.attack_type, AttackType.SSRF)
+        self.assertEqual(result.evidence[0].code, "RESTRICTED_PROTOCOL_TARGET")
     # --------------------------------------------------
     # Resource Exhaustion
     # --------------------------------------------------
