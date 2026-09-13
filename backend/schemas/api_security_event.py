@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 
 class NetworkInfo(BaseModel):
     source_ip: str
-    user_agent: str
+    user_agent: str | None = None
     destination_ip: str | None = None
     source_port: int | None = None
     destination_port: int | None = None
@@ -49,7 +49,7 @@ class RequestInfo(BaseModel):
 
 class ResponseInfo(BaseModel):
     status_code: int
-    latency_ms: float
+    latency_ms: float | None = None
 
 
 class ResourceInfo(BaseModel):
@@ -63,10 +63,11 @@ class ApiSecurityEvent(BaseModel):
     schema_version: str = "1.0"
     event_id: str
     timestamp: datetime
+    domain: str = "API"
 
     network: NetworkInfo
     identity: IdentityInfo
     request: RequestInfo
     response: ResponseInfo
-    resource: ResourceInfo
+    resource: ResourceInfo = Field(default_factory=ResourceInfo)
     endpoint: EndpointInfo | None = None

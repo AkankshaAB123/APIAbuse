@@ -29,6 +29,11 @@ class EventRepository:
                 if processing_result.risk_assessment is not None
                 else None
             ),
+            "impact": (
+                processing_result.impact.model_dump()
+                if processing_result.impact is not None
+                else None
+            ),
             "mitigation_action": processing_result.mitigation_action,
 
             # RAG + Gemini AI analysis

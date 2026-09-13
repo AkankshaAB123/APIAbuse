@@ -5,6 +5,7 @@ from backend.services.detection_service import DetectionService
 from backend.services.event_repository import EventRepository
 from backend.services.ml_service import MLService
 from backend.services.risk_engine import RiskEngine
+from backend.services.impact_service import ImpactService
 from backend.services.mitigation_service import MitigationService
 
 from rag.analysis.rag_service import analyze_threat
@@ -19,6 +20,8 @@ class EventProcessor:
     ml_service = MLService()
 
     risk_engine = RiskEngine()
+
+    impact_service = ImpactService()
 
     mitigation_service = MitigationService()
 
@@ -46,15 +49,21 @@ class EventProcessor:
             "[2] Checking recent events in MongoDB..."
         )
 
-        recent_events = (
-            self.repository.get_recent_events(
-                event
+        try:
+            recent_events = (
+                self.repository.get_recent_events(
+                    event
+                )
             )
-        )
-
-        print(
-            "[3] Recent events retrieved."
-        )
+            print(
+                "[3] Recent events retrieved."
+            )
+        except Exception as exc:
+            print(
+                f"[WARN] Failed to retrieve recent events from MongoDB: {exc}. "
+                "Falling back to empty history."
+            )
+            recent_events = []
 
 
         # ====================================================
@@ -107,9 +116,17 @@ class EventProcessor:
                 "[8] ML features supplied. Running ML detection..."
             )
 
-            ml_result = self.ml_service.detect(
-                ml_features
-            )
+            try:
+                ml_result = self.ml_service.detect(
+                    ml_features,
+                    event_id=event.event_id,
+                )
+            except Exception as exc:
+                print(
+                    f"[WARN] ML detection failed: {exc}. "
+                    "Continuing without ML."
+                )
+                ml_result = None
 
         else:
 
@@ -142,21 +159,47 @@ class EventProcessor:
 
 
         # ====================================================
-        # MITIGATION
+        # IMPACT ENGINE
         # ====================================================
 
         print(
-            "[12] Deciding mitigation action..."
+            "[12] Assessing threat impact..."
         )
 
-        mitigation_action = (
-            self.mitigation_service.decide_action(
-                risk_assessment
+        impact_assessment = (
+            self.impact_service.assess(
+                event=event,
+                detector_results=detector_results,
+                risk_assessment=risk_assessment,
+                ml_result=ml_result,
             )
         )
 
         print(
-            f"[13] Mitigation action: "
+            f"[13] Impact assessed: "
+            f"{impact_assessment.primary_impact} "
+            f"(identified={impact_assessment.impact_identified})"
+        )
+
+
+        # ====================================================
+        # MITIGATION
+        # ====================================================
+
+        print(
+            "[14] Deciding mitigation action..."
+        )
+
+        mitigation_action = (
+            self.mitigation_service.decide_action(
+                risk_assessment=risk_assessment,
+                impact_assessment=impact_assessment,
+                event=event,
+            )
+        )
+
+        print(
+            f"[15] Mitigation action: "
             f"{mitigation_action}"
         )
 
@@ -340,6 +383,8 @@ class EventProcessor:
             ml_result=ml_result,
 
             risk_assessment=risk_assessment,
+
+            impact=impact_assessment,
 
             mitigation_action=mitigation_action,
 
