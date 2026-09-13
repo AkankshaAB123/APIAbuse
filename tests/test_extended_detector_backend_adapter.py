@@ -73,5 +73,5 @@ class BackendAdapterIntegrationTests(unittest.TestCase):
 
     def test_legacy_backend_event_still_returns_all_detectors(self):
         results = run(build_event("legacy-current"))
-        self.assertEqual(len(results), 18)
+        self.assertEqual(len(results), 20)
         self.assertFalse(results["keylogging"]["detected"])

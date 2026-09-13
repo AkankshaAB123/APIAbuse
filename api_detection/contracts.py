@@ -43,7 +43,8 @@ class AttackType(str, Enum):
     REVERSE_SHELL = "REVERSE_SHELL"
     PRIVILEGE_ESCALATION = "PRIVILEGE_ESCALATION"
     PHISHING = "PHISHING"
-   
+    XSS = "XSS"
+
 
 
 @dataclass(frozen=True)

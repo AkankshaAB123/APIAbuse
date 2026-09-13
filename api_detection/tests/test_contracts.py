@@ -2289,17 +2289,25 @@ class DetectorContractTests(unittest.TestCase):
     # Engine
     # --------------------------------------------------
 
-    
-    def test_engine_returns_all_18_registered_detector_results(
+
+    def test_engine_returns_all_20_registered_detector_results(
         self,
     ) -> None:
         results = run_all_detectors(
             bola_idor_event()
         )
 
+        # Engine now has 20 registered detectors:
+        # API (12): bola_idor, broken_function_level_authorization,
+        #   credential_attacks, account_takeover, sql_injection, xss,
+        #   ssrf, resource_exhaustion, fake_shopping, fake_bank,
+        #   endpoint_enumeration, security_misconfiguration
+        # Network (4): ddos, dos_flooding, port_scanning, network_brute_force
+        # Endpoint (4): keylogging, suspicious_process_execution,
+        #   reverse_shell, privilege_escalation
         self.assertEqual(
             len(results),
-            18,
+            20,
         )
 
         self.assertTrue(
@@ -2311,43 +2319,45 @@ class DetectorContractTests(unittest.TestCase):
             "bola_idor",
         )
 
+        # ddos is at index 12 after xss (5), fake_shopping (8), fake_bank (9)
+        # were added to the API detector block
         self.assertEqual(
-            results[10].detector_id,
+            results[12].detector_id,
             "ddos",
         )
 
         self.assertEqual(
-            results[11].detector_id,
+            results[13].detector_id,
             "dos_flooding",
         )
 
         self.assertEqual(
-            results[12].detector_id,
+            results[14].detector_id,
             "port_scanning",
         )
 
         self.assertEqual(
-            results[13].detector_id,
+            results[15].detector_id,
             "network_brute_force",
         )
 
         self.assertEqual(
-            results[14].detector_id,
+            results[16].detector_id,
             "keylogging",
         )
 
         self.assertEqual(
-            results[15].detector_id,
+            results[17].detector_id,
             "suspicious_process_execution",
         )
 
         self.assertEqual(
-            results[16].detector_id,
+            results[18].detector_id,
             "reverse_shell",
         )
 
         self.assertEqual(
-            results[17].detector_id,
+            results[19].detector_id,
             "privilege_escalation",
         )
 

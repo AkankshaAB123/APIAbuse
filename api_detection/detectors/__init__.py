@@ -19,12 +19,14 @@ from .dos_flooding import detect_dos_flooding
 from .network_brute_force import detect_network_brute_force
 from .port_scanning import detect_port_scanning
 from .fake_bank import detect_fake_bank
+from .fake_shopping import detect_fake_shopping
 from .keylogging import detect_keylogging
 from .suspicious_process_execution import (
     detect_suspicious_process_execution,
 )
 from .reverse_shell import detect_reverse_shell
 from .privilege_escalation import detect_privilege_escalation
+from .xss import detect_xss
 
 __all__ = [
     "detect_account_takeover",
@@ -37,6 +39,7 @@ __all__ = [
     "detect_security_misconfiguration",
     "detect_sql_injection",
     "detect_fake_bank",
+    "detect_fake_shopping",
     "detect_ssrf",
     "detect_ddos",
     "detect_dos_flooding",
@@ -46,4 +49,5 @@ __all__ = [
     "detect_suspicious_process_execution",
     "detect_reverse_shell",
     "detect_privilege_escalation",
-]
+    "detect_xss",
+]

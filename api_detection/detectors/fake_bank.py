@@ -16,6 +16,8 @@ def _is_fake_bank_event(event: ApiSecurityEvent) -> bool:
     Checks that required fields exist and have the exact expected values.
     """
     body = event.request.body
+    if not isinstance(body, dict):
+        return False
     required = {
         "scenario": "FAKE_BANK",
         "brand_impersonation": True,
