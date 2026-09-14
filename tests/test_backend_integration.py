@@ -204,7 +204,7 @@ def test_processing_result_is_persisted(clean_test_events=None):
 
     assert stored_event is not None
     assert "processing" in stored_event
-    assert len(stored_event["processing"]["detector_results"]) == 20
+    assert len(stored_event["processing"]["detector_results"]) == 21
     assert stored_event["processing"]["risk_assessment"]["risk_level"] == "HIGH"
     assert "impact" in stored_event["processing"]
     assert stored_event["processing"]["impact"] is not None
@@ -329,7 +329,7 @@ def test_detector_domain_preserved_in_detector_result():
     service = DetectionService()
     results = service.detect(backend_event, recent_events=[])
 
-    assert len(results) == 20
+    assert len(results) == 21
 
     spe = next((r for r in results if r.detector_id == "suspicious_process_execution"), None)
     assert spe is not None
@@ -590,7 +590,7 @@ def test_ml_failure_resilience_in_pipeline(clean_test_events=None):
     data = response.json()
     assert data["status"] == "processed"
     assert data["ml_result"] is None
-    assert len(data["detector_results"]) == 20
+    assert len(data["detector_results"]) == 21
     assert data["risk_assessment"] is not None
     assert data["mitigation_action"] == "ALLOW"
 
@@ -606,7 +606,7 @@ def test_recent_events_db_failure_resilience(clean_test_events=None):
         result = processor.process(event)
 
     assert result.status == "processed"
-    assert len(result.detector_results) == 20
+    assert len(result.detector_results) == 21
     assert result.risk_assessment is not None
     assert result.mitigation_action == "ALLOW"
 

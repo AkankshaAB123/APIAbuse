@@ -28,6 +28,26 @@ def get_threats():
 
     for document in documents:
 
+        lab_incident = document.get(
+            "lab_incident",
+            {},
+        )
+
+        lab_attack = lab_incident.get(
+            "attack",
+            {},
+        )
+
+        lab_impact = lab_incident.get(
+            "impact",
+            {},
+        )
+
+        lab_mitigation = lab_incident.get(
+            "mitigation",
+            {},
+        )
+
         processing = document.get(
             "processing",
             {}
@@ -54,6 +74,27 @@ def get_threats():
             else "UNKNOWN"
         )
 
+        actual_client_ip = lab_attack.get(
+            "actual_client_ip"
+        )
+
+        lab_source_ip = lab_attack.get(
+            "source_ip"
+        )
+
+        document_source_ip = document.get(
+            "network",
+            {}
+        ).get(
+            "source_ip"
+        )
+
+        source_ip = (
+            actual_client_ip
+            or lab_source_ip
+            or document_source_ip
+        )
+
         impact_data = processing.get(
             "impact"
         )
@@ -78,11 +119,14 @@ def get_threats():
                     "timestamp"
                 ),
 
-                "sourceIp": document.get(
-                    "network",
-                    {}
-                ).get(
-                    "source_ip"
+                "sourceIp": source_ip,
+
+                "actualClientIp": actual_client_ip,
+
+                "syntheticSourceIp": (
+                    lab_source_ip
+                    if actual_client_ip and lab_source_ip != actual_client_ip
+                    else None
                 ),
 
                 "userId": document.get(
@@ -92,14 +136,18 @@ def get_threats():
                     "user_id"
                 ),
 
-                "endpoint": document.get(
+                "endpoint": lab_attack.get(
+                    "target_endpoint"
+                ) or document.get(
                     "request",
                     {}
                 ).get(
                     "endpoint"
                 ),
 
-                "method": document.get(
+                "method": lab_attack.get(
+                    "method"
+                ) or document.get(
                     "request",
                     {}
                 ).get(
@@ -123,6 +171,24 @@ def get_threats():
                     "mitigation_action",
                     "ALLOW"
                 ),
+
+                "finalStatus": lab_incident.get(
+                    "status"
+                ),
+
+                "mitigationResult": lab_mitigation.get(
+                    "result"
+                ),
+
+                "impactObserved": lab_impact.get(
+                    "observed"
+                ),
+
+                "classification": lab_incident.get(
+                    "classification"
+                ),
+
+                "labIncident": lab_incident or None,
 
                 "threatDetected": risk_assessment.get(
                     "threat_detected",

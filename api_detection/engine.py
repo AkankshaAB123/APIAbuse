@@ -28,6 +28,7 @@ from api_detection.detectors import (
     detect_ssrf,
     detect_suspicious_process_execution,
     detect_xss,
+    detect_phishing,
 )
 
 
@@ -148,6 +149,11 @@ def run_all_detectors(
         ),
 
         detect_privilege_escalation(
+            event,
+            recent_events,
+        ),
+
+        detect_phishing(
             event,
             recent_events,
         ),

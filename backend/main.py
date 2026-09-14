@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from backend.routes.events import router as events_router
 from backend.routes.threats import router as threats_router
 from backend.routes.security_check import router as security_check_router
+from backend.routes.lab import router as lab_router
 
 
 app = FastAPI(
@@ -45,6 +46,10 @@ app.include_router(
 
 app.include_router(
     threats_router
+)
+
+app.include_router(
+    lab_router
 )
 
 

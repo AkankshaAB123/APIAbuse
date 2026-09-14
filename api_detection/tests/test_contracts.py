@@ -2290,24 +2290,24 @@ class DetectorContractTests(unittest.TestCase):
     # --------------------------------------------------
 
 
-    def test_engine_returns_all_20_registered_detector_results(
+    def test_engine_returns_all_21_registered_detector_results(
         self,
     ) -> None:
         results = run_all_detectors(
             bola_idor_event()
         )
 
-        # Engine now has 20 registered detectors:
+        # Engine now has 21 registered detectors:
         # API (12): bola_idor, broken_function_level_authorization,
         #   credential_attacks, account_takeover, sql_injection, xss,
         #   ssrf, resource_exhaustion, fake_shopping, fake_bank,
         #   endpoint_enumeration, security_misconfiguration
         # Network (4): ddos, dos_flooding, port_scanning, network_brute_force
-        # Endpoint (4): keylogging, suspicious_process_execution,
-        #   reverse_shell, privilege_escalation
+        # Endpoint (5): keylogging, suspicious_process_execution,
+        #   reverse_shell, privilege_escalation, phishing
         self.assertEqual(
             len(results),
-            20,
+            21,
         )
 
         self.assertTrue(
@@ -2359,6 +2359,11 @@ class DetectorContractTests(unittest.TestCase):
         self.assertEqual(
             results[19].detector_id,
             "privilege_escalation",
+        )
+
+        self.assertEqual(
+            results[20].detector_id,
+            "phishing",
         )
 
 

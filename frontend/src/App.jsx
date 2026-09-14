@@ -51,6 +51,8 @@ import NewSecurityTest from "./pages/NewSecurityTest";
 import AlertsPage from "./pages/AlertsPage";
 import ApiInventory from "./pages/ApiInventory";
 import AICopilotPage from "./pages/AICopilotPage";
+import AttackerConsole from "./pages/AttackerConsole";
+import LiveSecurityDashboard from "./pages/LiveSecurityDashboard";
 
 import {
   getThreats,
@@ -2169,6 +2171,16 @@ function App() {
         <Route
           path="/alerts"
           element={shell(<AlertsPage />)}
+        />
+
+        <Route
+          path="/soc-live"
+          element={shell(<LiveSecurityDashboard />)}
+        />
+
+        <Route
+          path="/attacker-console"
+          element={adminShell(<AttackerConsole />)}
         />
 
         <Route

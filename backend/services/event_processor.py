@@ -293,6 +293,57 @@ class EventProcessor:
 
 
                 # --------------------------------------------
+                # Determine domain from detector (API, NETWORK, ENDPOINT)
+                # --------------------------------------------
+
+                domain = None
+                if detected_result is not None:
+                    domain = getattr(detected_result, "domain", None)
+                    if not domain and hasattr(detected_result, "metadata"):
+                        domain = detected_result.metadata.details.get("domain")
+
+                if not domain and detected_result is not None:
+                    endpoint_detectors = {
+                        "keylogging",
+                        "suspicious_process_execution",
+                        "reverse_shell",
+                        "privilege_escalation",
+                        "phishing",
+                    }
+                    network_detectors = {
+                        "ddos",
+                        "dos_flooding",
+                        "port_scanning",
+                        "network_brute_force",
+                    }
+                    if detected_result.detector_id in endpoint_detectors:
+                        domain = "ENDPOINT"
+                    elif detected_result.detector_id in network_detectors:
+                        domain = "NETWORK"
+                    else:
+                        domain = "API"
+                elif not domain:
+                    domain = "API"
+
+                if domain not in {"API", "NETWORK", "ENDPOINT"}:
+                    domain = "API"
+
+                # --------------------------------------------
+                # Extract ML signal (supporting evidence only)
+                # --------------------------------------------
+
+                ml_prediction = None
+                ml_confidence = None
+                ml_anomaly = False
+                ml_anomaly_score = None
+
+                if ml_result is not None:
+                    ml_prediction = ml_result.detection.prediction
+                    ml_confidence = ml_result.detection.confidence
+                    ml_anomaly = ml_result.anomaly.is_anomaly
+                    ml_anomaly_score = ml_result.anomaly.anomaly_score
+
+                # --------------------------------------------
                 # Build threat event for RAG
                 # --------------------------------------------
 
@@ -319,6 +370,22 @@ class EventProcessor:
                     "severity": severity,
 
                     "evidence": evidence,
+
+                    "domain": domain,
+
+                    "detector_confidence": (
+                        detected_result.confidence
+                        if detected_result is not None
+                        else None
+                    ),
+
+                    "ml_prediction": ml_prediction,
+
+                    "ml_confidence": ml_confidence,
+
+                    "ml_anomaly": ml_anomaly,
+
+                    "ml_anomaly_score": ml_anomaly_score,
                 }
 
 

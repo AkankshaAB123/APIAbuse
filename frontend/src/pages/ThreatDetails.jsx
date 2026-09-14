@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, Bot, Clock } from "lucide-react";
+import { ArrowLeft, Bot, Clock, ShieldAlert, Activity, Server, Smartphone, Info, AlertTriangle, ShieldCheck, Database, Fingerprint, FileText } from "lucide-react";
 import RiskBadge from "../components/RiskBadge";
 import { EmptyState, ErrorState, LoadingState } from "../components/States";
 import { getThreatById } from "../services/api";
@@ -20,14 +20,60 @@ const suggestedQuestions = [
 function normalizeThreat(document) {
   const processing = document.processing || document;
   const risk = processing.risk_assessment || document.risk_assessment || {};
+  const labIncident = document.lab_incident || null;
+  const labAttack = labIncident?.attack || {};
+  const labImpact = labIncident?.impact || {};
+  const labMitigation = labIncident?.mitigation || {};
+  const request = labAttack.request || document.request || {};
+  const identity = document.identity || {};
+  const sourceIp =
+    labAttack.actual_client_ip ||
+    labAttack.source_ip ||
+    document.network?.source_ip ||
+    document.source_ip;
+  const syntheticSourceIp =
+    labAttack.actual_client_ip &&
+    labAttack.source_ip &&
+    labAttack.source_ip !== labAttack.actual_client_ip
+      ? labAttack.source_ip
+      : null;
 
   return {
     eventId: document.event_id || processing.event_id,
-    timestamp: document.timestamp,
-    sourceIp: document.network?.source_ip || document.source_ip,
-    userId: document.identity?.user_id || document.user_id,
-    endpoint: document.request?.endpoint || document.endpoint,
-    method: document.request?.method || document.method,
+    timestamp: document.timestamp || labIncident?.lifecycle?.timestamps?.ATTACKING,
+    sourceIp,
+    syntheticSourceIp,
+    userId:
+      identity.user_id ||
+      labAttack.attacker ||
+      document.user_id ||
+      "Unauthenticated",
+    authStatus:
+      labAttack.authentication ||
+      (identity.is_authenticated ? "Authenticated" : "Unauthenticated"),
+    targetUser: labAttack.target_user,
+    targetResource: labAttack.requested_resource,
+    domain:
+      document.domain ||
+      processing.ai_analysis?.domain ||
+      processing.detector_results?.find((d) => d.detected)?.domain ||
+      processing.detector_results?.[0]?.domain ||
+      labIncident?.classification?.level1 ||
+      "API",
+    deviceSource:
+      document.endpoint?.hostname ||
+      document.endpoint?.device ||
+      (document.network?.user_agent ? document.network.user_agent.split(" ")[0] : null) ||
+      (labAttack.user_agent ? labAttack.user_agent.split(" ")[0] : null) ||
+      "Standard Client",
+    endpoint: labAttack.target_endpoint || request.endpoint || document.endpoint,
+    method: labAttack.method || request.method || document.method,
+    request,
+    labIncident,
+    classification: labIncident?.classification,
+    impact: labImpact,
+    finalStatus: labIncident?.status,
+    mitigation: labMitigation,
     detectorResults: processing.detector_results || document.detector_results || [],
     mlResult: processing.ml_result || document.ml_result,
     risk,
@@ -41,6 +87,20 @@ function formatTimestamp(timestamp) {
   return Number.isNaN(date.getTime())
     ? "Unknown"
     : date.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "medium" });
+}
+
+function formatValue(value, fallback = "N/A") {
+  if (value === null || value === undefined || value === "") {
+    return fallback;
+  }
+  if (typeof value === "boolean") {
+    return value ? "YES" : "NO";
+  }
+  return String(value);
+}
+
+function responseStatus(response) {
+  return response?.status_code ?? response?.statusCode ?? "N/A";
 }
 
 function hasAiContent(aiContent) {
@@ -61,7 +121,7 @@ function answerFromThreat(question, threat) {
     );
 
   if (question.includes("risk score")) {
-    return aiContent.risk_assessment || `Risk is ${threat.risk.risk_score ?? 0}/100 (${threat.risk.risk_level || "UNKNOWN"}) based on detector matches, ML anomaly status, and the risk engine decision.`;
+    return aiContent.risk_assessment || "Risk is " + (threat.risk.risk_score ?? 0) + "/100 (" + (threat.risk.risk_level || "UNKNOWN") + ") based on detector matches, ML anomaly status, and the risk engine decision.";
   }
 
   if (question.includes("evidence") || question.includes("detector")) {
@@ -71,11 +131,11 @@ function answerFromThreat(question, threat) {
   }
 
   if (question.includes("fix") || question.includes("control") || question.includes("prevent")) {
-    return aiContent.recommended_action || `Recommended action: ${threat.mitigationAction}. Review authorization, input validation, rate limiting, and endpoint exposure for this API.`;
+    return aiContent.recommended_action || "Recommended action: " + threat.mitigationAction + ". Review authorization, input validation, rate limiting, and endpoint exposure for this API.";
   }
 
   if (question.includes("simple")) {
-    return aiContent.threat_explanation || `${threat.risk.attack_types?.join(", ") || "This event"} was flagged because the request matched one or more abuse detector rules.`;
+    return aiContent.threat_explanation || "" + (threat.risk.attack_types?.join(", ") || "This event") + " was flagged because the request matched one or more abuse detector rules.";
   }
 
   return (
@@ -101,7 +161,6 @@ function ThreatDetails() {
       setRawThreat(data);
     } catch (err) {
       const storedThreat = localStorage.getItem("latestThreat");
-
       if (storedThreat) {
         try {
           const parsedThreat = JSON.parse(storedThreat);
@@ -110,10 +169,9 @@ function ThreatDetails() {
             return;
           }
         } catch {
-          // Keep the backend error below.
+          // Keep backend error
         }
       }
-
       setError(err.message || "Unable to load threat details.");
     } finally {
       setLoading(false);
@@ -131,198 +189,274 @@ function ThreatDetails() {
 
   const askQuestion = (event) => {
     event.preventDefault();
-
-    if (!question.trim() || !threat) {
-      return;
-    }
-
+    if (!question.trim() || !threat) return;
     setConversation((current) => [
       ...current,
-      {
-        question,
-        answer: answerFromThreat(question, threat),
-      },
+      { question, answer: answerFromThreat(question, threat) },
     ]);
     setQuestion("");
   };
 
-  if (loading) {
-    return <main className="page-content"><LoadingState /></main>;
-  }
-
-  if (error) {
-    return <main className="page-content"><ErrorState message={error} onRetry={loadThreat} /></main>;
-  }
-
-  if (!threat) {
-    return <main className="page-content"><EmptyState title="Threat not found." /></main>;
-  }
+  if (loading) return <main className="page-content"><LoadingState /></main>;
+  if (error) return <main className="page-content"><ErrorState message={error} onRetry={loadThreat} /></main>;
+  if (!threat) return <main className="page-content"><EmptyState title="Threat not found." /></main>;
 
   const aiContent = threat.aiAnalysis?.ai_analysis || {};
   const retrievedDocuments = threat.aiAnalysis?.retrieved_documents || [];
   const aiAvailable = hasAiContent(aiContent);
   const detectedDetectors = threat.detectorResults.filter((detector) => detector.detected);
+  const primaryDetector = threat.labIncident?.detection?.primary_detector || detectedDetectors[0] || null;
+  const beforeMitigation = threat.impact?.target_response_before_mitigation;
+  const afterMitigation = threat.mitigation?.post_mitigation_response;
+  const lifecycle = threat.labIncident?.lifecycle;
+  const syntheticEmail = threat.labIncident?.attack?.email;
+  const attackTypesStr = threat.risk.attack_types?.map(formatAttackType).join(", ") || formatAttackType(threat.aiAnalysis?.attack_type) || "Unknown";
 
   return (
-    <main className="details-page">
-      <div className="details-header">
-        <div>
+    <main className="page-content threat-details-view">
+      <div className="soc-header">
+        <div className="soc-header-content">
           <Link to="/threats" className="back-link">
-            <ArrowLeft size={16} />
-            Threats
+            <ArrowLeft size={16} /> Threats
           </Link>
-          <h1>Threat Investigation</h1>
-          <p>Detector evidence, ML/risk assessment, AI explanation, RAG knowledge, and mitigation.</p>
+          <div className="soc-title-row">
+            <ShieldAlert size={28} className="title-icon risk-high" />
+            <div>
+              <h1>Threat Investigation</h1>
+              <p className="soc-subtitle">{threat.eventId} | {formatTimestamp(threat.timestamp)}</p>
+            </div>
+          </div>
         </div>
-        <span className="threat-id">{threat.eventId}</span>
+        <div className="soc-header-actions">
+          <RiskBadge score={threat.risk.risk_score ?? 0} severity={threat.risk.risk_level || "LOW"} />
+          <div className={"status-badge "}>
+            {threat.mitigation?.result || threat.finalStatus || threat.mitigationAction}
+          </div>
+        </div>
       </div>
 
-      <section className="details-grid">
-        <div className="detail-card"><span className="detail-label">Attack Type</span><strong className="detail-value">{threat.risk.attack_types?.map(formatAttackType).join(", ") || formatAttackType(threat.aiAnalysis?.attack_type) || "Unknown"}</strong></div>
-        <div className="detail-card"><span className="detail-label">Timestamp</span><strong className="detail-value">{formatTimestamp(threat.timestamp)}</strong></div>
-        <div className="detail-card"><span className="detail-label">Source IP</span><strong className="detail-value">{threat.sourceIp || "Unknown"}</strong></div>
-        <div className="detail-card"><span className="detail-label">Endpoint</span><strong className="detail-value">{threat.method || "GET"} {threat.endpoint || "Unknown"}</strong></div>
-        <div className="detail-card"><span className="detail-label">Risk Score</span><RiskBadge score={threat.risk.risk_score ?? 0} severity={threat.risk.risk_level || "LOW"} /></div>
-        <div className="detail-card"><span className="detail-label">Action</span><strong className="detail-value">{threat.mitigationAction}</strong></div>
-      </section>
+      <div className="soc-grid layout-3-col">
 
-      <section className="information-card">
-        <h2>Detection Evidence</h2>
-        {threat.risk.reasons?.length > 0 ? (
-          <div className="ai-evidence-list">
-            {threat.risk.reasons.map((reason, index) => (
-              <div className="evidence-item" key={`${reason}-${index}`}>{reason}</div>
-            ))}
-          </div>
-        ) : (
-          <p className="placeholder-text">No risk reasons were returned for this event.</p>
-        )}
-      </section>
+        {/* LEFT COLUMN: Summary & Context */}
+        <div className="soc-grid-col">
+          <section className="soc-card">
+            <div className="soc-card-header">
+              <Info size={18} />
+              <h2>Threat Summary</h2>
+            </div>
+            <div className="soc-card-body">
+              <div className="data-row"><span>Attack Type</span><strong>{attackTypesStr}</strong></div>
+              <div className="data-row"><span>Domain</span><strong>{threat.domain || "API"}</strong></div>
+              <div className="data-row"><span>Severity</span><strong>{threat.risk.risk_level || "LOW"}</strong></div>
+              <div className="data-row"><span>Confidence</span><strong>{primaryDetector ? Math.round((primaryDetector.confidence || 0) * 100) + "%" : "N/A"}</strong></div>
+              <div className="data-row"><span>Status</span><strong>{threat.mitigation?.result || threat.finalStatus || threat.mitigationAction}</strong></div>
+            </div>
+          </section>
 
-      <section className="information-card">
-        <h2>Detector Results</h2>
-        <div className="detector-grid">
-          {threat.detectorResults.map((detector) => (
-            <div className={`detector-card ${detector.detected ? "detected" : ""}`} key={detector.detector_id}>
-              <strong>{detector.detector_id}</strong>
-              <span>{detector.detected ? "DETECTED" : "CLEAR"} | {detector.severity} | {Math.round((detector.confidence || 0) * 100)}%</span>
-              {(detector.evidence || []).map((item) => (
-                <p key={item.code}>{item.message || item.code}</p>
+          <section className="soc-card">
+            <div className="soc-card-header">
+              <Smartphone size={18} />
+              <h2>Device / Client</h2>
+            </div>
+            <div className="soc-card-body">
+              <div className="data-row"><span>Device</span><strong>{threat.deviceSource}</strong></div>
+              <div className="data-row"><span>Source IP</span><strong>{threat.sourceIp || "Unknown"}</strong></div>
+              {threat.syntheticSourceIp && (
+                <div className="data-row"><span>Synthetic Source</span><strong>{threat.syntheticSourceIp}</strong></div>
+              )}
+              <div className="data-row"><span>User Auth</span><strong>{formatValue(threat.userId, "Unauthenticated")} &mdash; {threat.authStatus}</strong></div>
+              <div className="data-row"><span>Endpoint</span><strong>{threat.method || "GET"} {threat.endpoint || "Unknown"}</strong></div>
+            </div>
+          </section>
+
+          <section className="soc-card">
+            <div className="soc-card-header">
+              <Clock size={18} />
+              <h2>Timeline</h2>
+            </div>
+            <div className="soc-card-body timeline-container">
+              {lifecycle?.states?.length > 0 ? (
+                lifecycle.states.map((state) => (
+                  <div className="timeline-step" key={state}>
+                    <div className="timeline-marker" />
+                    <div className="timeline-content">
+                      <span>{state}</span>
+                      <small>{formatTimestamp(lifecycle.timestamps?.[state])}</small>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                ["Request received", "Detection started", "Threat identified", "Risk calculated", "Mitigation applied", "AI analysis completed"].map((item) => (
+                  <div className="timeline-step" key={item}>
+                    <div className="timeline-marker" />
+                    <div className="timeline-content">
+                      <span>{item}</span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </section>
+        </div>
+
+        {/* MIDDLE COLUMN: Detection & Risk */}
+        <div className="soc-grid-col">
+          <section className="soc-card">
+            <div className="soc-card-header">
+              <Activity size={18} />
+              <h2>Detection</h2>
+            </div>
+            <div className="soc-card-body">
+              <div className="data-row"><span>ML Anomaly</span><strong>{threat.risk.ml_anomaly ? "YES" : "NO"}</strong></div>
+              <div className="data-row"><span>Detector Matches</span><strong>{detectedDetectors.length}</strong></div>
+
+              {threat.mlResult && (
+                <>
+                  <div className="data-row"><span>XGBoost Prediction</span><strong>{threat.mlResult.detection?.prediction || "Unknown"}</strong></div>
+                  <div className="data-row"><span>Isolation Forest</span><strong>{threat.mlResult.anomaly?.is_anomaly ? "ANOMALY" : "NORMAL"}</strong></div>
+                </>
+              )}
+
+              {threat.detectorResults.map((detector) => (
+                <div className={"detector-block "} key={detector.detector_id}>
+                  <div className="detector-block-header">
+                    <strong>{detector.detector_id}</strong>
+                    <span>{detector.detected ? "DETECTED" : "CLEAR"} | {detector.severity}</span>
+                  </div>
+                  {(detector.evidence || []).map((item) => (
+                    <div className="detector-evidence" key={item.code}>{item.message || item.code}</div>
+                  ))}
+                </div>
               ))}
             </div>
-          ))}
-        </div>
-      </section>
+          </section>
 
-      <section className="information-card">
-        <h2>ML / Risk Analysis</h2>
-        <div className="information-row"><span>Threat Detected</span><strong>{threat.risk.threat_detected ? "YES" : "NO"}</strong></div>
-        <div className="information-row"><span>Detector Matches</span><strong>{detectedDetectors.length}</strong></div>
-        <div className="information-row"><span>ML Anomaly</span><strong>{threat.risk.ml_anomaly ? "YES" : "NO"}</strong></div>
-        {threat.mlResult && (
-          <>
-            <div className="information-row"><span>XGBoost Prediction</span><strong>{threat.mlResult.detection?.prediction || "Unknown"}</strong></div>
-            <div className="information-row"><span>ML Confidence</span><strong>{Math.round((threat.mlResult.detection?.confidence || 0) * 100)}%</strong></div>
-            <div className="information-row"><span>Isolation Forest</span><strong>{threat.mlResult.anomaly?.is_anomaly ? "ANOMALY" : "NORMAL"}</strong></div>
-          </>
-        )}
-      </section>
-
-      <section className="information-card ai-analysis-card">
-        <div className="ai-analysis-header">
-          <div>
-            <h2>AI Analysis</h2>
-            <p>RAG + Gemini Security Intelligence</p>
-          </div>
-          <span className={aiAvailable ? "ai-badge" : "ai-badge muted"}>{aiAvailable ? "AI POWERED" : "UNAVAILABLE"}</span>
-        </div>
-
-        {aiAvailable ? (
-          <div className="ai-section-grid">
-            <div className="ai-section"><h3>Threat Explanation</h3><p>{aiContent.threat_explanation}</p></div>
-            <div className="ai-section"><h3>Evidence</h3><p>{aiContent.evidence || "No additional AI evidence provided."}</p></div>
-            <div className="ai-section"><h3>Risk Assessment</h3><p>{aiContent.risk_assessment || "No additional AI risk assessment provided."}</p></div>
-            <div className="ai-section"><h3>Recommended Action</h3><p>{aiContent.recommended_action || "No AI recommendation provided."}</p></div>
-          </div>
-        ) : (
-          <div className="ai-status-warning">
-            AI analysis temporarily unavailable. Your threat detection results are still available.
-          </div>
-        )}
-      </section>
-
-      <section className="information-card">
-        <h2>RAG Knowledge</h2>
-        {retrievedDocuments.length > 0 ? (
-          <div className="retrieved-documents">
-            {retrievedDocuments.map((document, index) => (
-              <div className="retrieved-document" key={`${document.filename}-${index}`}>
-                <span>{document.filename}</span>
-                <span>Similarity: {document.score}</span>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="placeholder-text">No retrieved RAG documents were returned for this threat.</p>
-        )}
-      </section>
-
-      <section className="information-card">
-        <h2>Mitigation</h2>
-        <div className="information-row"><span>Recommended System Action</span><strong>{threat.mitigationAction}</strong></div>
-        <div className="information-row"><span>Risk-Based Decision</span><strong>{threat.risk.risk_level || "UNKNOWN"}</strong></div>
-        <div className="information-row"><span>Final Action</span><strong>{threat.mitigationAction}</strong></div>
-      </section>
-
-      <section className="information-card">
-        <h2>Attack Timeline</h2>
-        <div className="timeline-list">
-          {["Request received", "Detection started", "Threat identified", "Risk calculated", "Mitigation applied", "AI analysis completed"].map((item) => (
-            <div className="timeline-item" key={item}>
-              <Clock size={15} />
-              <span>{item}</span>
+          <section className="soc-card">
+            <div className="soc-card-header">
+              <AlertTriangle size={18} />
+              <h2>Risk & Impact</h2>
             </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="information-card ai-copilot-panel">
-        <div className="ai-analysis-header">
-          <div>
-            <h2>AI Security Copilot</h2>
-            <p>Ask about this threat using its existing detector, risk, RAG, and Gemini context.</p>
-          </div>
-          <Bot size={22} />
-        </div>
-
-        <div className="suggested-question-list">
-          {suggestedQuestions.map((item) => (
-            <button type="button" key={item} onClick={() => setQuestion(item)}>
-              {item}
-            </button>
-          ))}
-        </div>
-
-        <form className="copilot-form" onSubmit={askQuestion}>
-          <input
-            value={question}
-            onChange={(event) => setQuestion(event.target.value)}
-            placeholder="Ask anything about this threat..."
-          />
-          <button className="primary-action" type="submit">ASK AI</button>
-        </form>
-
-        {conversation.length > 0 && (
-          <div className="copilot-thread">
-            {conversation.map((item, index) => (
-              <div className="copilot-message" key={`${item.question}-${index}`}>
-                <strong>{item.question}</strong>
-                <p>{item.answer}</p>
+            <div className="soc-card-body">
+              <div className="data-row"><span>Risk Score</span><strong>{threat.risk.risk_score ?? 0} / 100</strong></div>
+              <div className="data-row"><span>Risk Reasons</span>
+                <div className="reason-list">
+                  {threat.risk.reasons?.length > 0 ?
+                    threat.risk.reasons.map((r, i) => <span key={i} className="reason-badge">{r}</span>)
+                    : "None provided"}
+                </div>
               </div>
-            ))}
-          </div>
-        )}
-      </section>
+
+              {threat.labIncident && (
+                <>
+                  <div className="data-row"><span>Impact Observed</span><strong>{formatValue(threat.impact?.observed)}</strong></div>
+                  <div className="data-row"><span>Impact Description</span><strong>{formatValue(threat.impact?.description)}</strong></div>
+                </>
+              )}
+            </div>
+          </section>
+
+          <section className="soc-card">
+            <div className="soc-card-header">
+              <ShieldCheck size={18} />
+              <h2>Mitigation</h2>
+            </div>
+            <div className="soc-card-body">
+              <div className="data-row"><span>Recommended System Action</span><strong>{threat.mitigationAction}</strong></div>
+              <div className="data-row"><span>Enforced</span><strong>{formatValue(threat.mitigation?.enforced)}</strong></div>
+              <div className="data-row"><span>Final Action</span><strong>{threat.mitigation?.result || threat.mitigationAction}</strong></div>
+              <div className="data-row"><span>Final HTTP Status</span><strong>{responseStatus(afterMitigation)}</strong></div>
+            </div>
+          </section>
+        </div>
+
+        {/* RIGHT COLUMN: AI & Knowledge */}
+        <div className="soc-grid-col">
+          <section className="soc-card ai-accent-card">
+            <div className="soc-card-header ai-header">
+              <div style={{display: "flex", alignItems: "center", gap: "8px"}}>
+                <Bot size={18} />
+                <h2>AI Analysis</h2>
+              </div>
+              {aiContent.confidence_level && (
+                <span className={"ai-confidence "}>{aiContent.confidence_level}</span>
+              )}
+            </div>
+            <div className="soc-card-body">
+              {aiAvailable ? (
+                <div className="ai-content-blocks">
+                  <div className="ai-block">
+                    <h4>Explanation</h4>
+                    <p>{aiContent.threat_explanation}</p>
+                  </div>
+                  <div className="ai-block">
+                    <h4>Evidence Evaluation</h4>
+                    <p>{aiContent.evidence || "No additional AI evidence."}</p>
+                  </div>
+                  <div className="ai-block">
+                    <h4>Risk Assessment</h4>
+                    <p>{aiContent.risk_assessment || "No AI risk assessment."}</p>
+                  </div>
+                  <div className="ai-block">
+                    <h4>Recommended Action</h4>
+                    <p>{aiContent.recommended_action || "No AI recommendation."}</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="ai-unavailable">AI analysis temporarily unavailable.</div>
+              )}
+            </div>
+          </section>
+
+          <section className="soc-card">
+            <div className="soc-card-header">
+              <Database size={18} />
+              <h2>Retrieved Knowledge</h2>
+            </div>
+            <div className="soc-card-body">
+              {retrievedDocuments.length > 0 ? (
+                <div className="rag-documents">
+                  {retrievedDocuments.map((doc, i) => (
+                    <div className="rag-doc" key={i}>
+                      <FileText size={14} />
+                      <div className="rag-doc-info">
+                        <strong>{doc.filename}</strong>
+                        <span>Score: {doc.score}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="empty-text">No context documents retrieved.</div>
+              )}
+            </div>
+          </section>
+
+          <section className="soc-card copilot-card">
+            <div className="soc-card-header">
+              <Bot size={18} />
+              <h2>AI Copilot Q&A</h2>
+            </div>
+            <div className="soc-card-body">
+              <div className="copilot-thread small-thread">
+                {conversation.map((item, index) => (
+                  <div className="copilot-message" key={index}>
+                    <strong>{item.question}</strong>
+                    <p>{item.answer}</p>
+                  </div>
+                ))}
+              </div>
+              <form className="copilot-inline-form" onSubmit={askQuestion}>
+                <input
+                  value={question}
+                  onChange={(e) => setQuestion(e.target.value)}
+                  placeholder="Ask about this threat..."
+                />
+                <button type="submit">Ask</button>
+              </form>
+            </div>
+          </section>
+        </div>
+      </div>
     </main>
   );
 }

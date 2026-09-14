@@ -92,6 +92,28 @@ export async function getStatistics() {
 
 
 /* =========================
+   LAUNCH CONTROLLED LAB ATTACK
+========================= */
+
+export async function launchLabAttack(endpoint) {
+
+  return apiRequest(endpoint, {
+    method: "POST",
+  });
+
+}
+
+export async function launchSyntheticPhishingEmail(email) {
+
+  return apiRequest("/lab/attacks/phishing-email", {
+    method: "POST",
+    body: JSON.stringify(email),
+  });
+
+}
+
+
+/* =========================
    EXPORT BASE URL
 ========================= */
 
