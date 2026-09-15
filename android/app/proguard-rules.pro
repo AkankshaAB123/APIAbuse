@@ -1,0 +1,2 @@
+# ThreatGuard Proguard Rules
+

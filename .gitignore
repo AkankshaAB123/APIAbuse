@@ -40,3 +40,15 @@ ml_test_features.json
 # Temporary deployment test environment
 .deploy_test/
 
+# Android build artifacts and cache
+.gradle/
+android/.gradle/
+android/build/
+android/app/build/
+android/.idea/
+android/*.iml
+android/app/*.iml
+android/local.properties
+*.apk
+*.aab
+
