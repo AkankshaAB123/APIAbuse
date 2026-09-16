@@ -13,68 +13,11 @@ import {
   ChevronUp,
 } from "lucide-react";
 import { ROLES } from "../data/roles";
-
-/* =========================================================
-   DEMO ACCOUNT STORE
-   Seeded defaults + runtime-registered analyst accounts
-   Stored in localStorage under "threatguardAccounts"
-========================================================= */
-
-const ACCOUNTS_KEY = "threatguardAccounts";
-
-function hashPassword(password) {
-  let h = 0x811c9dc5;
-  for (let i = 0; i < password.length; i++) {
-    h ^= password.charCodeAt(i);
-    h = (h * 0x01000193) >>> 0;
-  }
-  return h.toString(16);
-}
-
-function checkPassword(password, hash) {
-  return hashPassword(password) === hash;
-}
-
-function loadAccounts() {
-  const defaults = {
-    admin: {
-      username: "admin",
-      name: "Admin",
-      role: ROLES.ADMIN,
-      passwordHash: hashPassword("Admin@ThreatGuard2026!"),
-    },
-    analyst: {
-      username: "analyst",
-      name: "Security Analyst",
-      role: ROLES.ANALYST,
-      passwordHash: hashPassword("Analyst@ThreatGuard2026!"),
-    },
-  };
-
-  try {
-    const stored = localStorage.getItem(ACCOUNTS_KEY);
-    if (stored) {
-      const parsed = JSON.parse(stored);
-      return { ...parsed, ...defaults };
-    }
-  } catch {
-    // ignore
-  }
-
-  return defaults;
-}
-
-function saveAccounts(accounts) {
-  try {
-    localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts));
-  } catch {
-    // ignore
-  }
-}
+import { loginUser, registerUser } from "../services/api";
 
 /* =========================================================
    PASSWORD STRENGTH METER
-========================================================= */
+========================= */
 
 function measureStrength(password) {
   if (!password) return { score: 0, label: "", color: "" };
@@ -114,7 +57,7 @@ function PasswordStrengthBar({ password }) {
 
 /* =========================================================
    PASSWORD INPUT — with show/hide toggle
-========================================================= */
+========================= */
 
 function PasswordInput({ id, value, onChange, placeholder, autoComplete }) {
   const [visible, setVisible] = useState(false);
@@ -143,7 +86,7 @@ function PasswordInput({ id, value, onChange, placeholder, autoComplete }) {
 
 /* =========================================================
    DEMO CREDENTIAL GUIDE (collapsible accordion)
-========================================================= */
+========================= */
 
 function CredentialGuide() {
   const [open, setOpen] = useState(false);
@@ -170,8 +113,13 @@ function CredentialGuide() {
             <code>analyst</code>
             <code>Analyst@ThreatGuard2026!</code>
           </div>
+          <div className="credential-row">
+            <span>Protected Device</span>
+            <code>device</code>
+            <code>Device@ThreatGuard2026!</code>
+          </div>
           <p>
-            You can also register a new analyst account using the Create Account tab.
+            Authenticated via backend JWT &amp; server-side RBAC. You can also register a new analyst account using the Create Account tab.
           </p>
         </div>
       )}
@@ -180,8 +128,8 @@ function CredentialGuide() {
 }
 
 /* =========================================================
-   SIGN IN TAB
-========================================================= */
+   SIGN IN TAB — Server-side JWT authentication
+========================= */
 
 function SignInForm({ onLogin }) {
   const [username, setUsername] = useState("");
@@ -199,20 +147,16 @@ function SignInForm({ onLogin }) {
     }
 
     setLoading(true);
-    await new Promise((resolve) => setTimeout(resolve, 600));
-
-    const accounts = loadAccounts();
-    const account = accounts[username.trim().toLowerCase()];
-
-    if (!account || !checkPassword(password, account.passwordHash)) {
-      setError("Invalid username or password. Please try again.");
+    try {
+      const response = await loginUser(username.trim().toLowerCase(), password);
+      // Safe user object returned from backend without password hashes
+      const user = response.user;
+      onLogin(user);
+    } catch (err) {
+      setError(err?.message || "Invalid username or password. Please try again.");
+    } finally {
       setLoading(false);
-      return;
     }
-
-    setLoading(false);
-    const { passwordHash: _ph, ...safeAccount } = account;
-    onLogin(safeAccount);
   };
 
   return (
@@ -263,7 +207,7 @@ function SignInForm({ onLogin }) {
         {loading
           ? <span className="auth-spinner" aria-hidden="true" />
           : <ShieldCheck size={16} />}
-        {loading ? "Authenticating\u2026" : "Sign In to Console"}
+        {loading ? "Authenticating via JWT…" : "Sign In to Console"}
       </button>
 
       <CredentialGuide />
@@ -272,8 +216,8 @@ function SignInForm({ onLogin }) {
 }
 
 /* =========================================================
-   CREATE ACCOUNT TAB
-========================================================= */
+   CREATE ACCOUNT TAB — Server-side analyst registration
+========================= */
 
 function CreateAccountForm({ onLogin }) {
   const [name, setName] = useState("");
@@ -315,29 +259,15 @@ function CreateAccountForm({ onLogin }) {
     }
 
     setLoading(true);
-    await new Promise((resolve) => setTimeout(resolve, 500));
-
-    const accounts = loadAccounts();
-
-    if (accounts[cleanUsername]) {
-      setError("That username is already taken. Please choose another.");
+    try {
+      const response = await registerUser(cleanUsername, password, name.trim());
+      const user = response.user;
+      onLogin(user);
+    } catch (err) {
+      setError(err?.message || "Registration failed. Please choose another username.");
+    } finally {
       setLoading(false);
-      return;
     }
-
-    const newAccount = {
-      username: cleanUsername,
-      name: name.trim(),
-      role: ROLES.ANALYST,
-      passwordHash: hashPassword(password),
-    };
-
-    accounts[cleanUsername] = newAccount;
-    saveAccounts(accounts);
-    setLoading(false);
-
-    const { passwordHash: _ph, ...safeAccount } = newAccount;
-    onLogin(safeAccount);
   };
 
   const strength = measureStrength(password);
@@ -408,7 +338,7 @@ function CreateAccountForm({ onLogin }) {
           <span className="field-hint error">Passwords do not match</span>
         )}
         {confirmPassword && password === confirmPassword && password && (
-          <span className="field-hint success">Passwords match \u2713</span>
+          <span className="field-hint success">Passwords match ✓</span>
         )}
       </div>
 
@@ -438,11 +368,11 @@ function CreateAccountForm({ onLogin }) {
         {loading
           ? <span className="auth-spinner" aria-hidden="true" />
           : <UserPlus size={16} />}
-        {loading ? "Creating Account\u2026" : "Create Analyst Account"}
+        {loading ? "Creating Account via Backend…" : "Create Analyst Account"}
       </button>
 
       <p className="auth-note">
-        Your account is stored locally for this demo session.
+        Account credentials are encrypted and validated server-side by ThreatGuard.
       </p>
     </form>
   );
@@ -450,7 +380,7 @@ function CreateAccountForm({ onLogin }) {
 
 /* =========================================================
    MAIN LOGIN PAGE
-========================================================= */
+========================= */
 
 function LoginPage({ onLogin }) {
   const [tab, setTab] = useState("signin");
@@ -492,7 +422,7 @@ function LoginPage({ onLogin }) {
         </ul>
 
         <div className="login-hero-footer">
-          <span>Powered by Google Gemini \u00b7 scikit-learn \u00b7 FastAPI</span>
+          <span>Powered by Google Gemini · scikit-learn · FastAPI</span>
         </div>
       </section>
 

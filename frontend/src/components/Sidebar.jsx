@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { isAdmin } from "../data/roles";
+import { isAdmin, isDevice } from "../data/roles";
 import {
   LayoutDashboard,
   ShieldAlert,
