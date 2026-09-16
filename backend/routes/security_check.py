@@ -1,8 +1,11 @@
 from datetime import datetime, timezone
 from uuid import uuid4
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
+
+from backend.dependencies.auth import require_admin
+from backend.schemas.user import UserInDB
 
 from backend.schemas.api_security_event import (
     ApiSecurityEvent,
@@ -54,7 +57,8 @@ class SecurityCheckRequest(BaseModel):
 
 @router.post("/security-check")
 def security_check(
-    request: SecurityCheckRequest
+    request: SecurityCheckRequest,
+    current_user: UserInDB = Depends(require_admin),
 ):
 
     try:

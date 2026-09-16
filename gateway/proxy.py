@@ -40,6 +40,28 @@ class GatewayConfig(BaseModel):
     rate_limit_ttl_seconds: float = 30.0
     rate_limit_max_requests: int = 0
     rate_limit_window_seconds: float = 10.0
+    # Identity of the protected host — used as network.destination_ip in events.
+    # Prefer GATEWAY_PROTECTED_HOST env var; otherwise parsed from target_base_url.
+    protected_host: str = "127.0.0.1"
+
+
+def extract_protected_host(target_base_url: str) -> str:
+    """Extract the host/IP of the protected target from its base URL.
+
+    Examples:
+        "http://10.165.192.186:8000" -> "10.165.192.186"
+        "http://127.0.0.1:8000"      -> "127.0.0.1"
+        "http://myserver"            -> "myserver"
+    """
+    try:
+        parsed = urllib.parse.urlsplit(target_base_url)
+        # netloc may be "host:port" — take only the host part
+        host = parsed.hostname or parsed.netloc.split(":")[0]
+        if host:
+            return host
+    except Exception:
+        pass
+    return "127.0.0.1"
 
 
 def extract_real_source_ip(request: Request) -> str:
@@ -70,9 +92,10 @@ def create_gateway_app(
     target_forwarder: Optional[Callable[[str, str, dict, bytes], tuple[int, dict, bytes]]] = None,
 ) -> FastAPI:
     """Create and configure the ThreatGuard Enforcement Gateway FastAPI application."""
+    _target_base_url = os.getenv("TARGET_BASE_URL", "http://127.0.0.1:8000")
     cfg = config or GatewayConfig(
         backend_events_url=os.getenv("BACKEND_EVENTS_URL", "http://127.0.0.1:8000/events"),
-        target_base_url=os.getenv("TARGET_BASE_URL", "http://127.0.0.1:8000"),
+        target_base_url=_target_base_url,
         gateway_host=os.getenv("GATEWAY_HOST", "0.0.0.0"),
         gateway_port=int(os.getenv("GATEWAY_PORT", "8080")),
         timeout_seconds=float(os.getenv("GATEWAY_TIMEOUT_SECONDS", "30.0")),
@@ -80,6 +103,8 @@ def create_gateway_app(
         rate_limit_ttl_seconds=float(os.getenv("GATEWAY_RATE_LIMIT_TTL_SECONDS", "30.0")),
         rate_limit_max_requests=int(os.getenv("GATEWAY_RATE_LIMIT_MAX_REQUESTS", "0")),
         rate_limit_window_seconds=float(os.getenv("GATEWAY_RATE_LIMIT_WINDOW_SECONDS", "10.0")),
+        # Prefer explicit GATEWAY_PROTECTED_HOST; otherwise parse host from target URL.
+        protected_host=os.getenv("GATEWAY_PROTECTED_HOST") or extract_protected_host(_target_base_url),
     )
 
     table = enforcement_table or EnforcementTable(
@@ -251,7 +276,7 @@ def create_gateway_app(
             "network": {
                 "source_ip": source_ip,
                 "user_agent": request.headers.get("user-agent", "ThreatGuard-Gateway/1.0"),
-                "destination_ip": cfg.gateway_host,
+                "destination_ip": cfg.protected_host,
                 "protocol": "HTTP",
                 "connection_status": "success",
             },

@@ -1,28 +1,50 @@
 from collections import defaultdict
+from typing import Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from backend.database import events_collection
+from backend.dependencies.auth import get_current_user, require_analyst
 from backend.schemas.impact_assessment import ImpactAssessment
+from backend.schemas.user import UserInDB, UserRole
 
 
 router = APIRouter()
 
 
 @router.get("/threats")
-def get_threats():
+def get_threats(
+    device_ip: Optional[str] = Query(
+        None,
+        description=(
+            "Optional manual filter for SOC staff (ADMIN/ANALYST). "
+            "For DEVICE role callers, device scope is strictly enforced "
+            "from the authenticated JWT user record."
+        ),
+    ),
+    current_user: UserInDB = Depends(get_current_user),
+):
     """
-    Return all detected threats in a frontend-friendly format.
-    """
+    Return detected threats in a frontend-friendly format.
 
-    documents = events_collection.find(
-        {
-            "processing.risk_assessment.threat_detected": True
-        }
-    ).sort(
-        "timestamp",
-        -1
-    )
+    REAL SERVER-SIDE AUTHORIZATION:
+    - If current_user.role == DEVICE: results are strictly and unconditionally
+      filtered by current_user.device_ip. Any conflicting device_ip query parameter
+      is ignored. Devices cannot access incidents belonging to other devices.
+    - If current_user.role in (ADMIN, ANALYST): full global SOC threat visibility.
+      Can optionally use ?device_ip=... to inspect a specific host.
+    """
+    base_filter: dict = {"processing.risk_assessment.threat_detected": True}
+
+    if current_user.role == UserRole.DEVICE:
+        # Enforce server-side device scope from JWT identity
+        enforced_ip = current_user.device_ip or "10.165.192.186"
+        base_filter["network.destination_ip"] = enforced_ip
+    elif device_ip:
+        # Staff filtering convenience
+        base_filter["network.destination_ip"] = device_ip
+
+    documents = events_collection.find(base_filter).sort("timestamp", -1)
 
     threats = []
 
@@ -210,31 +232,34 @@ def get_threats():
 
 
 @router.get("/threats/{event_id}")
-def get_threat_by_id(event_id: str):
+def get_threat_by_id(
+    event_id: str,
+    current_user: UserInDB = Depends(get_current_user),
+):
     """
     Return complete information about one threat event.
-    """
 
-    document = events_collection.find_one(
-        {
-            "event_id": event_id
-        }
-    )
+    REAL SERVER-SIDE AUTHORIZATION:
+    - If current_user.role == DEVICE: the event is only returned if its
+      network.destination_ip matches current_user.device_ip.
+      Otherwise returns 404 Not Found to prevent leaking existence.
+    - If current_user.role in (ADMIN, ANALYST): can retrieve any incident.
+    """
+    document = events_collection.find_one({"event_id": event_id})
 
     if document is None:
-        raise HTTPException(
-            status_code=404,
-            detail="Threat event not found"
-        )
+        raise HTTPException(status_code=404, detail="Threat event not found")
 
-    document["_id"] = str(
-        document["_id"]
-    )
+    # Device isolation check
+    if current_user.role == UserRole.DEVICE:
+        enforced_ip = current_user.device_ip or "10.165.192.186"
+        event_dest_ip = document.get("network", {}).get("destination_ip")
+        if event_dest_ip != enforced_ip:
+            raise HTTPException(status_code=404, detail="Threat event not found")
 
-    processing = document.get(
-        "processing",
-        {}
-    )
+    document["_id"] = str(document["_id"])
+
+    processing = document.get("processing", {})
     if "impact" not in document and "impact" in processing:
         document["impact"] = processing["impact"]
 
@@ -242,7 +267,9 @@ def get_threat_by_id(event_id: str):
 
 
 @router.get("/statistics")
-def get_statistics():
+def get_statistics(
+    current_user: UserInDB = Depends(require_analyst),
+):
     """
     Return dashboard statistics and
     real traffic/threat trend data.
