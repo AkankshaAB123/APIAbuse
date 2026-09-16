@@ -34,10 +34,12 @@ class GatewayConfig(BaseModel):
     target_base_url: str = "http://127.0.0.1:8000"
     gateway_host: str = "0.0.0.0"
     gateway_port: int = 8080
-    timeout_seconds: float = 5.0
+    timeout_seconds: float = 30.0
     # Custom TTL overrides (seconds)
     block_ttl_seconds: float = 60.0
     rate_limit_ttl_seconds: float = 30.0
+    rate_limit_max_requests: int = 0
+    rate_limit_window_seconds: float = 10.0
 
 
 def extract_real_source_ip(request: Request) -> str:
@@ -73,13 +75,20 @@ def create_gateway_app(
         target_base_url=os.getenv("TARGET_BASE_URL", "http://127.0.0.1:8000"),
         gateway_host=os.getenv("GATEWAY_HOST", "0.0.0.0"),
         gateway_port=int(os.getenv("GATEWAY_PORT", "8080")),
+        timeout_seconds=float(os.getenv("GATEWAY_TIMEOUT_SECONDS", "30.0")),
+        block_ttl_seconds=float(os.getenv("GATEWAY_BLOCK_TTL_SECONDS", "60.0")),
+        rate_limit_ttl_seconds=float(os.getenv("GATEWAY_RATE_LIMIT_TTL_SECONDS", "30.0")),
+        rate_limit_max_requests=int(os.getenv("GATEWAY_RATE_LIMIT_MAX_REQUESTS", "0")),
+        rate_limit_window_seconds=float(os.getenv("GATEWAY_RATE_LIMIT_WINDOW_SECONDS", "10.0")),
     )
 
     table = enforcement_table or EnforcementTable(
         default_ttls={
             "BLOCK": cfg.block_ttl_seconds,
             "RATE_LIMIT": cfg.rate_limit_ttl_seconds,
-        }
+        },
+        rate_limit_max_requests=cfg.rate_limit_max_requests,
+        rate_limit_window_seconds=cfg.rate_limit_window_seconds,
     )
 
     app = FastAPI(
@@ -219,30 +228,11 @@ def create_gateway_app(
                     )
 
         # ---------------------------------------------------------------------
-        # 2. Forward request to protected demo target
+        # 2. Read incoming request body and headers
         # ---------------------------------------------------------------------
         body_bytes = await request.body()
         req_headers = dict(request.headers)
 
-        try:
-            target_status, target_headers, target_body = forward_target_fn(
-                method, path, req_headers, body_bytes
-            )
-            logger.info(f"Target responded with status HTTP {target_status} for {method} {path}")
-        except Exception as exc:
-            logger.error(f"Protected target unreachable at {cfg.target_base_url}: {exc}")
-            return JSONResponse(
-                status_code=502,
-                content={
-                    "error": "bad_gateway",
-                    "message": "Protected demo target is unreachable.",
-                    "details": str(exc),
-                },
-            )
-
-        # ---------------------------------------------------------------------
-        # 3. Synthesize ApiSecurityEvent using existing backend contract
-        # ---------------------------------------------------------------------
         parsed_body = None
         if body_bytes:
             try:
@@ -269,7 +259,7 @@ def create_gateway_app(
                 "user_id": (parsed_body.get("username") if isinstance(parsed_body, dict) else None),
                 "session_id": f"gw-sess-{source_ip.replace('.', '_')}",
                 "roles": [],
-                "is_authenticated": (target_status == 200),
+                "is_authenticated": False,
             },
             "request": {
                 "method": method,
@@ -278,7 +268,7 @@ def create_gateway_app(
                 "body": parsed_body,
             },
             "response": {
-                "status_code": target_status,
+                "status_code": 401,
                 "latency_ms": 10.0,
             },
             "resource": {
@@ -289,7 +279,7 @@ def create_gateway_app(
         }
 
         # ---------------------------------------------------------------------
-        # 4. Synchronously submit event to existing POST /events
+        # 3. Synchronously submit event to existing POST /events
         # ---------------------------------------------------------------------
         try:
             processing_result = submit_event_fn(event_payload)
@@ -319,7 +309,7 @@ def create_gateway_app(
             )
 
         # ---------------------------------------------------------------------
-        # 5. Update in-memory enforcement state based on actual mitigation_action
+        # 4. If mitigated (BLOCK, RATE_LIMIT, etc.), update table and DO NOT call target
         # ---------------------------------------------------------------------
         if mitigation_action in ("BLOCK", "RATE_LIMIT", "QUARANTINE", "TRANSACTION_BLOCK", "URL_BLOCK"):
             table.update_state(
@@ -332,13 +322,59 @@ def create_gateway_app(
             )
             logger.warning(
                 f"Updated gateway enforcement state: IP {source_ip} -> {mitigation_action} "
-                f"(Score: {risk_score}, Level: {risk_level})"
+                f"(Score: {risk_score}, Level: {risk_level}). Target was NOT reached."
+            )
+
+            if mitigation_action == "RATE_LIMIT":
+                return JSONResponse(
+                    status_code=429,
+                    content={
+                        "error": "too_many_requests",
+                        "status": "rate_limited",
+                        "enforcement_action": "RATE_LIMIT",
+                        "reason": f"ThreatGuard Active Defense: Source IP {source_ip} rate-limited.",
+                        "details": reason_str,
+                        "event_id": event_id,
+                    },
+                    headers={"X-ThreatGuard-Action": "RATE_LIMIT"},
+                )
+
+            return JSONResponse(
+                status_code=403,
+                content={
+                    "error": "access_forbidden",
+                    "status": "blocked",
+                    "enforcement_action": mitigation_action,
+                    "reason": f"ThreatGuard Active Defense: Source IP {source_ip} is blocked.",
+                    "details": reason_str,
+                    "risk_level": risk_level,
+                    "event_id": event_id,
+                },
+                headers={"X-ThreatGuard-Action": mitigation_action},
+            )
+
+        # ---------------------------------------------------------------------
+        # 5. Forward request to protected demo target (ALLOW path)
+        # ---------------------------------------------------------------------
+        try:
+            target_status, target_headers, target_body = forward_target_fn(
+                method, path, req_headers, body_bytes
+            )
+            logger.info(f"Target responded with status HTTP {target_status} for {method} {path}")
+        except Exception as exc:
+            logger.error(f"Protected target unreachable at {cfg.target_base_url}: {exc}")
+            return JSONResponse(
+                status_code=502,
+                content={
+                    "error": "bad_gateway",
+                    "message": "Protected demo target is unreachable.",
+                    "details": str(exc),
+                },
             )
 
         # ---------------------------------------------------------------------
         # 6. Return response received from target with security headers
         # ---------------------------------------------------------------------
-        # Parse JSON if possible to return clean JSONResponse
         content_type = target_headers.get("content-type", target_headers.get("Content-Type", ""))
         headers_to_return = {
             "X-ThreatGuard-Action": mitigation_action,

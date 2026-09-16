@@ -78,7 +78,7 @@ class EnforcementGatewayTests(unittest.TestCase):
         mock_submit.assert_called_once()
 
     def test_2_rate_limit_enforced_receives_429(self):
-        """2. Backend returns RATE_LIMIT -> gateway enforces rate limit -> excessive request receives 429."""
+        """2. Backend returns RATE_LIMIT -> gateway enforces rate limit -> request receives 429 and target is NOT invoked."""
         mock_submit = MagicMock(return_value={
             "mitigation_action": "RATE_LIMIT",
             "risk_assessment": {
@@ -103,38 +103,29 @@ class EnforcementGatewayTests(unittest.TestCase):
         gw_client = TestClient(gw_app)
 
         ip = "192.168.1.105"
+        count_before = get_demo_target_invocation_count()
 
-        # Request 1: hits target, backend returns RATE_LIMIT, gateway sets state
+        # Request 1: Evaluated by IDS -> returns RATE_LIMIT -> rejected with 429 without invoking target
         r1 = gw_client.post(
             "/demo-login",
             json={"username": "attacker", "password": "wrong"},
             headers={"X-Forwarded-For": ip},
         )
-        self.assertEqual(r1.status_code, 401)
+        self.assertEqual(r1.status_code, 429)
+        self.assertEqual(r1.json()["status"], "rate_limited")
         self.assertEqual(r1.headers.get("X-ThreatGuard-Action"), "RATE_LIMIT")
 
-        # Now RATE_LIMIT state is active. Max allowed in window is 2.
-        # Send subsequent requests in quick succession:
+        # Target was NOT invoked on the mitigated request
+        self.assertEqual(get_demo_target_invocation_count(), count_before)
+
+        # Subsequent request while RATE_LIMIT is active is also rejected
         r2 = gw_client.post(
             "/demo-login",
             json={"username": "attacker", "password": "wrong"},
             headers={"X-Forwarded-For": ip},
         )
-        r3 = gw_client.post(
-            "/demo-login",
-            json={"username": "attacker", "password": "wrong"},
-            headers={"X-Forwarded-For": ip},
-        )
-        r4 = gw_client.post(
-            "/demo-login",
-            json={"username": "attacker", "password": "wrong"},
-            headers={"X-Forwarded-For": ip},
-        )
-
-        # The fourth request must be rate-limited (HTTP 429) before reaching the target
-        self.assertEqual(r4.status_code, 429)
-        self.assertEqual(r4.json()["status"], "rate_limited")
-        self.assertEqual(r4.headers.get("X-ThreatGuard-Action"), "RATE_LIMIT")
+        self.assertEqual(r2.status_code, 429)
+        self.assertEqual(get_demo_target_invocation_count(), count_before)
 
     def test_3_block_returns_403_target_not_invoked(self):
         """3. Backend returns BLOCK -> gateway returns 403 -> target is NOT invoked."""
@@ -162,17 +153,17 @@ class EnforcementGatewayTests(unittest.TestCase):
         gw_client = TestClient(gw_app)
 
         ip = "192.168.1.110"
+        count_before = get_demo_target_invocation_count()
 
-        # Request 1: Target reached, backend returns BLOCK, gateway stores BLOCK in table
+        # Request 1: Backend returns BLOCK, gateway stores BLOCK in table and does NOT call target
         r1 = gw_client.post(
             "/demo-login",
             json={"username": "hacker", "password": "wrong"},
             headers={"X-Forwarded-For": ip},
         )
-        self.assertEqual(r1.status_code, 401)
+        self.assertEqual(r1.status_code, 403)
         self.assertEqual(r1.headers.get("X-ThreatGuard-Action"), "BLOCK")
-
-        count_after_first = get_demo_target_invocation_count()
+        self.assertEqual(get_demo_target_invocation_count(), count_before)
 
         # Request 2 from same IP: Must be blocked at gateway (HTTP 403), target must NOT be invoked
         r2 = gw_client.post(
@@ -184,8 +175,8 @@ class EnforcementGatewayTests(unittest.TestCase):
         self.assertEqual(r2.json()["status"], "blocked")
         self.assertEqual(r2.headers.get("X-ThreatGuard-Action"), "BLOCK")
 
-        # Prove target was not called for the blocked request
-        self.assertEqual(get_demo_target_invocation_count(), count_after_first)
+        # Prove target was not called for either blocked request
+        self.assertEqual(get_demo_target_invocation_count(), count_before)
 
     def test_4_different_source_ip_not_affected_by_block(self):
         """4. Different source IP is not affected by another source's block state."""
@@ -309,6 +300,53 @@ class EnforcementGatewayTests(unittest.TestCase):
             self.assertEqual(r.status_code, 403)
 
         # Verify target counter remained strictly unchanged
+        count_after = get_demo_target_invocation_count()
+        self.assertEqual(count_before, count_after)
+
+    def test_8_rate_limit_state_rejects_before_target_invocation(self):
+        """8. Active RATE_LIMIT state causes HTTP 429 and target invocation count does not increase."""
+        # Create a table with immediate rate limiting (rate_limit_max_requests=0)
+        table = EnforcementTable(
+            default_ttls={"RATE_LIMIT": 10.0},
+            rate_limit_max_requests=0,
+            rate_limit_window_seconds=10.0,
+        )
+        ip = "192.168.1.240"
+        table.update_state(
+            source_ip=ip,
+            action="RATE_LIMIT",
+            reason="Automated brute-force detected",
+            ttl_seconds=10.0,
+        )
+
+        backend_client = TestClient(backend_app)
+
+        def forward_to_backend(method, path, headers, body):
+            resp = backend_client.request(method, path, headers=headers, content=body)
+            return resp.status_code, dict(resp.headers), resp.content
+
+        gw_app = create_gateway_app(
+            enforcement_table=table,
+            event_submitter=lambda e: {"mitigation_action": "RATE_LIMIT"},
+            target_forwarder=forward_to_backend,
+        )
+        gw_client = TestClient(gw_app)
+
+        count_before = get_demo_target_invocation_count()
+
+        # Send request with active RATE_LIMIT on the source IP
+        resp = gw_client.post(
+            "/demo-login",
+            json={"username": "attacker", "password": "wrong"},
+            headers={"X-Forwarded-For": ip},
+        )
+
+        # Must be rejected immediately with HTTP 429
+        self.assertEqual(resp.status_code, 429)
+        self.assertEqual(resp.json()["status"], "rate_limited")
+        self.assertEqual(resp.headers.get("X-ThreatGuard-Action"), "RATE_LIMIT")
+
+        # Target invocation counter must strictly NOT increase
         count_after = get_demo_target_invocation_count()
         self.assertEqual(count_before, count_after)
 
