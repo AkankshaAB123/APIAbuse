@@ -26,6 +26,7 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:5173",
         "http://127.0.0.1:5173",
+        "http://10.165.192.186:5173",
         "https://apiabuse.onrender.com",
     ],
 

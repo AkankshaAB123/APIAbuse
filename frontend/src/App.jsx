@@ -57,7 +57,8 @@ import DeviceDashboard from "./pages/DeviceDashboard";
 
 import {
   getThreats,
-  getStatistics
+  getStatistics,
+  clearAuthSession
 } from "./services/api";
 import { formatAttackType } from "./data/attackTypes";
 import { isAdmin, isDevice, ROLE_LABELS } from "./data/roles";
