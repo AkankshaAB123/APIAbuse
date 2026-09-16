@@ -12,6 +12,8 @@ from backend.lab.dos_flood_lab import (
     run_dos_flood_attack_lab,
 )
 from backend.lab.phishing_lab import (
+    handle_victim_phishing_get,
+    phishing_blocked_page_html,
     phishing_login_page_html,
     phishing_page_blocked,
     process_dummy_phishing_submission,
@@ -120,30 +122,51 @@ def launch_dos_flood_attack(request: Request):
     return run_dos_flood_attack_lab(client_ip=_client_ip(request))
 
 
-@router.get("/phishing/login")
-def read_phishing_login_page():
-    if phishing_page_blocked():
+ALLOWED_PHISHING_SCENARIOS = {"login", "verify", "reward", "account"}
+
+
+@router.get("/phishing/{scenario}")
+def read_phishing_scenario_page(scenario: str, request: Request):
+    if scenario not in ALLOWED_PHISHING_SCENARIOS:
+        raise HTTPException(status_code=404, detail=f"Scenario '{scenario}' not found.")
+
+    if phishing_page_blocked(scenario):
         return HTMLResponse(
-            content="<h1>Controlled phishing lab page blocked</h1>",
+            content=phishing_blocked_page_html(),
             status_code=403,
         )
 
+    source_ip = _client_ip(request)
+    host_header = request.headers.get("host", "10.165.192.186")
+    raw_host = host_header.split(":")[0] if host_header else "10.165.192.186"
+    destination_ip = "10.165.192.186" if raw_host in ("testserver", "10.165.192.186", "localhost", "127.0.0.1") else raw_host
+    user_agent = request.headers.get("user-agent", "Victim-Browser")
+
+    is_blocked, content, status_code = handle_victim_phishing_get(
+        scenario=scenario,
+        source_ip=source_ip,
+        destination_ip=destination_ip,
+        user_agent=user_agent,
+    )
     return HTMLResponse(
-        content=phishing_login_page_html(),
-        status_code=200,
+        content=content,
+        status_code=status_code,
     )
 
 
-@router.post("/phishing/login")
-def submit_phishing_login(payload: PhishingLoginRequest):
-    if phishing_page_blocked():
+@router.post("/phishing/{scenario}")
+def submit_phishing_scenario(scenario: str, payload: PhishingLoginRequest):
+    if scenario not in ALLOWED_PHISHING_SCENARIOS:
+        raise HTTPException(status_code=404, detail=f"Scenario '{scenario}' not found.")
+
+    if phishing_page_blocked(scenario):
         return JSONResponse(
             status_code=403,
             content={
                 "status_code": 403,
                 "body": {
                     "error": "page_blocked",
-                    "reason": "Controlled phishing lab page is blocked.",
+                    "reason": f"Controlled phishing {scenario} lab page is blocked.",
                 },
                 "credential_capture_observed": False,
             },

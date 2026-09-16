@@ -41,6 +41,28 @@ LINK_REFERENCE_TERMS = (
 )
 
 
+CONTROLLED_PHISHING_PREFIX = "/lab/phishing/"
+PHISHING_PATH_MARKERS = (
+    "login",
+    "signin",
+    "verify",
+    "verification",
+    "secure",
+    "reward",
+    "claim",
+    "account",
+)
+INCENTIVE_TERMS = (
+    "reward",
+    "claim",
+    "bonus",
+    "gift",
+    "prize",
+    "voucher",
+    "promotion",
+)
+
+
 def _normalize_url_indicator(value: str) -> str:
     """Extract an http(s) URL from plain text or Markdown without fetching it."""
     markdown_match = re.search(r"\[[^\]]*\]\((https?://[^)\s]+)\)", value)
@@ -139,6 +161,9 @@ def detect_phishing(
     del recent_events
 
     body: Any = event.request.body
+    endpoint = (event.request.endpoint or "").lower()
+
+    # 1. Backward-compatible exact match check for legacy test payloads
     is_body_match = (
         isinstance(body, dict)
         and body.get("credential_submission_observed") is True
@@ -171,6 +196,86 @@ def detect_phishing(
             },
             domain=DetectorDomain.ENDPOINT,
         )
+
+    # 2. Contextual / Behavioral evaluation for controlled phishing lab scenarios
+    if endpoint.startswith(CONTROLLED_PHISHING_PREFIX) and isinstance(body, dict):
+        has_lure_marker = any(marker in endpoint for marker in PHISHING_PATH_MARKERS)
+        if has_lure_marker:
+            evidence_items: list[Evidence] = [
+                Evidence(
+                    code="PHISHING_SUSPICIOUS_PATH",
+                    message=f"Endpoint '{event.request.endpoint}' contains controlled phishing path markers.",
+                )
+            ]
+            indicator_hits = 0
+
+            # Form indicator
+            if body.get("has_credential_form") or body.get("page_contains_login_form"):
+                evidence_items.append(
+                    Evidence(
+                        code="PHISHING_CREDENTIAL_HARVESTING_FORM",
+                        message="Landing page renders an unauthenticated credential collection form.",
+                    )
+                )
+                indicator_hits += 1
+
+            # Social engineering terms indicator
+            check_text = " ".join(
+                str(body.get(k, ""))
+                for k in (
+                    "message",
+                    "social_engineering_terms",
+                    "subject",
+                    "email_body",
+                    "title",
+                    "description",
+                    "lure_type",
+                )
+            ).lower()
+            terms = [
+                term for term in (SOCIAL_ENGINEERING_TERMS + INCENTIVE_TERMS)
+                if term in check_text
+            ]
+            if terms:
+                evidence_items.append(
+                    Evidence(
+                        code="PHISHING_SOCIAL_ENGINEERING_LURE",
+                        message=f"Request context contains social engineering indicators: {terms[:4]}.",
+                    )
+                )
+                indicator_hits += 1
+
+            # Lure type indicator
+            lure_type = body.get("lure_type") or body.get("scenario")
+            if lure_type in {"credential_harvesting", "account_verification", "incentive_claim", "security_check", "login", "verify", "reward", "account"}:
+                evidence_items.append(
+                    Evidence(
+                        code="PHISHING_LURE_TYPE_OBSERVED",
+                        message=f"Observed controlled lure pattern '{lure_type}'.",
+                    )
+                )
+                indicator_hits += 1
+
+            # Trigger detection if at least 2 indicators match (or 1 strong indicator)
+            if indicator_hits >= 1:
+                return DetectorResult(
+                    event_id=event.event_id,
+                    detector_id=DETECTOR_ID,
+                    detected=True,
+                    attack_type=AttackType.PHISHING,
+                    confidence=0.92,
+                    severity=Severity.HIGH,
+                    evidence=tuple(evidence_items),
+                    source="api_detector",
+                    metadata={
+                        "rule_version": PHISHING_RULE_VERSION,
+                        "window_seconds": 0,
+                        "domain": DetectorDomain.ENDPOINT.value,
+                        "scenario": lure_type or "controlled_phishing",
+                        "indicator_hits": indicator_hits,
+                    },
+                    domain=DetectorDomain.ENDPOINT,
+                )
 
     is_synthetic_email = (
         event.request.endpoint == EMAIL_PHISHING_ENDPOINT

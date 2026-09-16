@@ -29,77 +29,328 @@ PHISHING_EMAIL_PATH = "/lab/phishing/email"
 DUMMY_USERNAME = "victim_demo"
 DUMMY_PASSWORD = "DemoPassword123"
 
+SCENARIO_CONFIGS = {
+    "login": {
+        "title": "Account Login",
+        "badge": "CONTROLLED LOCAL LAB PAGE",
+        "description": "This intentionally fake login page is used only with dummy lab credentials.",
+        "lure_type": "credential_harvesting",
+        "fields": ["username", "password"],
+        "terms": ["login", "sign in", "credential", "password"],
+    },
+    "verify": {
+        "title": "Account Verification Required",
+        "badge": "CONTROLLED LOCAL VERIFICATION PAGE",
+        "description": "Urgent security alert: please verify your account immediately to avoid suspension.",
+        "lure_type": "account_verification",
+        "fields": ["username", "verification_code"],
+        "terms": ["verify", "verification", "urgent", "immediately", "security alert", "suspended"],
+    },
+    "reward": {
+        "title": "Claim Exclusive Reward",
+        "badge": "CONTROLLED LOCAL REWARD PAGE",
+        "description": "Claim your security promotion bonus voucher immediately by confirming your user identity.",
+        "lure_type": "incentive_claim",
+        "fields": ["username", "claim_code"],
+        "terms": ["reward", "claim", "bonus", "voucher", "promotion", "gift"],
+    },
+    "account": {
+        "title": "Account Security Update",
+        "badge": "CONTROLLED LOCAL ACCOUNT PORTAL",
+        "description": "Review and update your enterprise account profile and credentials immediately.",
+        "lure_type": "security_check",
+        "fields": ["username", "account_pin"],
+        "terms": ["account", "security alert", "password", "credential", "immediately"],
+    },
+}
+
 _PHISHING_BLOCKED = False
+_BLOCKED_PHISHING_SCENARIOS: set[str] = set()
 
 
 def reset_phishing_lab_state() -> None:
-    global _PHISHING_BLOCKED
+    global _PHISHING_BLOCKED, _BLOCKED_PHISHING_SCENARIOS
     _PHISHING_BLOCKED = False
+    _BLOCKED_PHISHING_SCENARIOS = set()
 
 
-def block_phishing_page() -> None:
-    global _PHISHING_BLOCKED
+def block_phishing_page(scenario: str | None = None) -> None:
+    global _PHISHING_BLOCKED, _BLOCKED_PHISHING_SCENARIOS
     _PHISHING_BLOCKED = True
+    if scenario:
+        _BLOCKED_PHISHING_SCENARIOS.add(scenario)
 
 
-def phishing_page_blocked() -> bool:
+def phishing_page_blocked(scenario: str | None = None) -> bool:
+    if scenario and scenario in _BLOCKED_PHISHING_SCENARIOS:
+        return True
     return _PHISHING_BLOCKED
 
 
-def phishing_login_page_html() -> str:
-    return """
+def phishing_login_page_html(scenario: str = "login") -> str:
+    cfg = SCENARIO_CONFIGS.get(scenario, SCENARIO_CONFIGS["login"])
+    badge = cfg["badge"]
+    title = cfg["title"]
+    desc = cfg["description"]
+    action_endpoint = f"/lab/phishing/{scenario}"
+
+    return f"""
     <!doctype html>
     <html lang="en">
       <head>
         <meta charset="utf-8" />
-        <title>ThreatGuard Controlled Phishing Lab</title>
+        <title>ThreatGuard Controlled Phishing Lab - {title}</title>
         <style>
-          body { margin: 0; min-height: 100vh; display: grid; place-items: center;
-            font-family: Arial, sans-serif; background: #060914; color: #e7eaf6; }
-          main { width: min(420px, 92vw); padding: 28px; border: 1px solid #253255;
-            border-radius: 10px; background: #10162a; box-shadow: 0 24px 80px #0008; }
-          .lab { color: #fbbf24; font-size: 12px; font-weight: 700; letter-spacing: .08em; }
-          h1 { margin: 10px 0 4px; font-size: 28px; }
-          p { color: #93a4c7; line-height: 1.5; }
-          label { display: block; margin-top: 16px; color: #b8c3df; font-size: 13px; }
-          input { width: 100%; box-sizing: border-box; margin-top: 8px; padding: 12px;
-            border-radius: 8px; border: 1px solid #33415f; background: #070b18; color: #fff; }
-          button { margin-top: 20px; width: 100%; padding: 12px; border: 0;
-            border-radius: 8px; background: #2563eb; color: white; font-weight: 700; }
+          body {{ margin: 0; min-height: 100vh; display: grid; place-items: center;
+            font-family: Arial, sans-serif; background: #060914; color: #e7eaf6; }}
+          main {{ width: min(420px, 92vw); padding: 28px; border: 1px solid #253255;
+            border-radius: 10px; background: #10162a; box-shadow: 0 24px 80px #0008; }}
+          .lab {{ color: #fbbf24; font-size: 12px; font-weight: 700; letter-spacing: .08em; }}
+          h1 {{ margin: 10px 0 4px; font-size: 28px; }}
+          p {{ color: #93a4c7; line-height: 1.5; }}
+          label {{ display: block; margin-top: 16px; color: #b8c3df; font-size: 13px; }}
+          input {{ width: 100%; box-sizing: border-box; margin-top: 8px; padding: 12px;
+            border-radius: 8px; border: 1px solid #33415f; background: #070b18; color: #fff; }}
+          button {{ margin-top: 20px; width: 100%; padding: 12px; border: 0;
+            border-radius: 8px; background: #2563eb; color: white; font-weight: 700; }}
         </style>
       </head>
       <body>
         <main>
-          <div class="lab">CONTROLLED LOCAL LAB PAGE</div>
-          <h1>Account Verification</h1>
-          <p>This intentionally fake login page is used only with dummy lab credentials.</p>
+          <div class="lab">{badge}</div>
+          <h1>{title}</h1>
+          <p>{desc}</p>
           <form id="login-form">
-            <label>Username
+            <label>Username / Account ID
               <input name="username" value="victim_demo" autocomplete="off" />
             </label>
-            <label>Password
+            <label>Credential / Security PIN
               <input name="password" value="DemoPassword123" type="password" autocomplete="off" />
             </label>
             <button type="submit">Continue</button>
           </form>
           <script>
-            document.getElementById("login-form").addEventListener("submit", async (event) => {
+            document.getElementById("login-form").addEventListener("submit", async (event) => {{
               event.preventDefault();
               const form = new FormData(event.currentTarget);
-              await fetch("/lab/phishing/login", {
+              await fetch("{action_endpoint}", {{
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
+                headers: {{ "Content-Type": "application/json" }},
+                body: JSON.stringify({{
                   username: form.get("username"),
                   password: form.get("password")
-                })
-              });
-            });
+                }})
+              }});
+            }});
           </script>
         </main>
       </body>
     </html>
     """
+
+
+def phishing_blocked_page_html(
+    incident_id: str | None = None,
+    risk_score: float | None = None,
+    action: str = "BLOCKED",
+) -> str:
+    incident_label = f"Incident ID: {incident_id}" if incident_id else "Real-time Interception"
+    risk_label = f"Risk Score: {risk_score:.1f} (HIGH)" if risk_score is not None else "High Risk Phishing Target"
+    return f"""
+    <!doctype html>
+    <html lang="en">
+      <head>
+        <meta charset="utf-8" />
+        <title>ThreatGuard Active Defense - Phishing Site Blocked</title>
+        <style>
+          body {{ margin: 0; min-height: 100vh; display: grid; place-items: center;
+            font-family: Arial, sans-serif; background: #060914; color: #e7eaf6; }}
+          main {{ width: min(480px, 92vw); padding: 32px; border: 1px solid #ef4444;
+            border-radius: 12px; background: #10162a; box-shadow: 0 24px 80px rgba(239, 68, 68, 0.25); text-align: center; }}
+          .badge {{ display: inline-block; padding: 4px 14px; border-radius: 20px;
+            background: rgba(239, 68, 68, 0.15); color: #ef4444; font-size: 11px; font-weight: 700; letter-spacing: .08em; border: 1px solid #ef4444; }}
+          h1 {{ margin: 16px 0 8px; font-size: 26px; color: #f87171; }}
+          p {{ color: #93a4c7; line-height: 1.6; font-size: 14px; margin: 8px 0; }}
+          .details {{ margin-top: 20px; padding: 16px; border-radius: 8px; background: #070b18; border: 1px solid #253255; text-align: left; }}
+          .details div {{ margin-bottom: 8px; font-size: 13px; color: #b8c3df; }}
+          .details div:last-child {{ margin-bottom: 0; }}
+          .details strong {{ color: #e7eaf6; }}
+          .footer {{ margin-top: 24px; font-size: 12px; color: #64748b; }}
+        </style>
+      </head>
+      <body>
+        <main>
+          <div class="badge">THREATGUARD ACTIVE DEFENSE</div>
+          <h1>Access Blocked (HTTP 403)</h1>
+          <p>This destination was identified as a <strong>controlled credential phishing site</strong> and blocked by ThreatGuard in real time.</p>
+          <div class="details">
+            <div><strong>Detection:</strong> Phishing Credential Interception</div>
+            <div><strong>Threat:</strong> Social Engineering / Credential Harvesting</div>
+            <div><strong>Assessment:</strong> {risk_label}</div>
+            <div><strong>Enforcement:</strong> {action} Enforced</div>
+            <div><strong>Tracking:</strong> {incident_label}</div>
+          </div>
+          <div class="footer">ThreatGuard Autonomous Security Gateway &copy; 2026</div>
+        </main>
+      </body>
+    </html>
+    """
+
+
+def handle_victim_phishing_get(
+    scenario: str = "login",
+    source_ip: str = "127.0.0.1",
+    destination_ip: str = "10.165.192.186",
+    user_agent: str = "Victim-Browser",
+) -> tuple[bool, str, int]:
+    """Process a real victim browser GET request to the controlled phishing URL.
+
+    Executes the existing detection -> RAG/LLM -> risk -> mitigation pipeline.
+    Returns (is_blocked, html_content, status_code).
+    """
+    if phishing_page_blocked(scenario):
+        return True, phishing_blocked_page_html(), 403
+
+    cfg = SCENARIO_CONFIGS.get(scenario, SCENARIO_CONFIGS["login"])
+    scenario_path = f"/lab/phishing/{scenario}"
+    incident_id = f"LAB-PHISH-GET-{uuid4().hex[:10]}"
+    target_response = {
+        "status_code": 200,
+        "latency_ms": 1.0,
+        "body": {
+            "scenario": scenario,
+            "lure_type": cfg["lure_type"],
+            "has_credential_form": True,
+            "page_contains_login_form": True,
+            "social_engineering_terms": cfg["terms"],
+            "credential_submission_observed": True,
+            "credential_capture_observed": True,
+            "phishing_url": scenario_path,
+            "captured_username": DUMMY_USERNAME,
+            "password_submitted": False,
+            "message": f"Victim browser navigated to controlled phishing {scenario} URL.",
+        },
+    }
+
+    event = build_phishing_event(
+        incident_id=incident_id,
+        source_ip=source_ip,
+        target_response=target_response,
+        endpoint=scenario_path,
+    )
+    event.request.method = "GET"
+    event.network.user_agent = user_agent
+    event.network.destination_ip = destination_ip
+
+    processor = EventProcessor()
+    processing_result = processor.process(event)
+
+    detector = _phishing_detector(processing_result)
+    detected = bool(
+        (detector and detector.get("detected"))
+        or (processing_result.risk_assessment and processing_result.risk_assessment.threat_detected)
+    )
+
+    if detected:
+        block_phishing_page(scenario)
+
+        incident_doc = {
+            "incident_id": incident_id,
+            "classification": CLASSIFICATION,
+            "attack": {
+                "name": "Credential Phishing",
+                "attacker": "victim-browser-click",
+                "actual_client_ip": source_ip,
+                "source_ip": source_ip,
+                "destination_ip": destination_ip,
+                "authentication": "Unauthenticated",
+                "target_endpoint": scenario_path,
+                "method": "GET",
+                "payload": {
+                    "username": DUMMY_USERNAME,
+                    "password_submitted": False,
+                },
+                "attacker_request": f"GET {scenario_path}",
+                "request": {
+                    "method": "GET",
+                    "endpoint": scenario_path,
+                    "body": event.request.body,
+                },
+            },
+            "impact": {
+                "observed": True,
+                "description": f"Victim browser opened controlled phishing {scenario} URL; active defense intercepted the request.",
+                "target_response_before_mitigation": {
+                    "status_code": 200,
+                    "page_contains_login_form": True,
+                    "credential_submission_observed": True,
+                    "credential_capture_observed": True,
+                },
+            },
+            "detection": {
+                "method": "existing_detector_pipeline_phishing_detector",
+                "detected": True,
+                "primary_detector": detector,
+                "detectors": [
+                    result.model_dump()
+                    for result in processing_result.detector_results
+                ],
+            },
+            "risk": (
+                processing_result.risk_assessment.model_dump()
+                if processing_result.risk_assessment
+                else None
+            ),
+            "mitigation": {
+                "action": processing_result.mitigation_action or "URL_BLOCK",
+                "enforced": True,
+                "result": "BLOCKED",
+                "description": "ThreatGuard Active Defense blocked the controlled phishing site in real-time.",
+                "post_mitigation_response": {
+                    "status_code": 403,
+                    "body": {
+                        "error": "page_blocked",
+                        "reason": f"Controlled phishing navigation detected on {scenario_path}",
+                    },
+                },
+            },
+            "lifecycle": {
+                "states": [
+                    "ATTACKING",
+                    "IMPACT_OBSERVED",
+                    "DETECTED",
+                    "MITIGATING",
+                    "MITIGATED",
+                    "BLOCKED",
+                ],
+                "timestamps": {
+                    "ATTACKING": datetime.now(timezone.utc).isoformat(),
+                    "DETECTED": datetime.now(timezone.utc).isoformat(),
+                    "MITIGATED": datetime.now(timezone.utc).isoformat(),
+                    "BLOCKED": datetime.now(timezone.utc).isoformat(),
+                },
+            },
+            "status": "MITIGATED",
+            "processing_result": processing_result.model_dump(),
+        }
+        events_collection.update_one(
+            {"event_id": incident_id},
+            {"$set": {"lab_incident": incident_doc, "network.destination_ip": destination_ip}},
+        )
+
+        risk_score = (
+            processing_result.risk_assessment.risk_score
+            if processing_result.risk_assessment
+            else None
+        )
+        action = processing_result.mitigation_action or "URL_BLOCK"
+        return True, phishing_blocked_page_html(
+            incident_id=incident_id,
+            risk_score=risk_score,
+            action=action,
+        ), 403
+
+    return False, phishing_login_page_html(scenario=scenario), 200
 
 
 def process_dummy_phishing_submission(username: str, password: str) -> dict:
@@ -188,8 +439,31 @@ def build_phishing_event(
     incident_id: str,
     source_ip: str,
     target_response: dict,
+    endpoint: str = PHISHING_PATH,
 ) -> ApiSecurityEvent:
     body = target_response["body"]
+
+    request_body = {
+        "username": body.get("captured_username"),
+        "password_submitted": body.get("password_submitted"),
+        "credential_submission_observed": body.get(
+            "credential_submission_observed"
+        ),
+        "credential_capture_observed": body.get(
+            "credential_capture_observed"
+        ),
+        "phishing_url": body.get("phishing_url", endpoint),
+    }
+    if "has_credential_form" in body:
+        request_body["has_credential_form"] = body["has_credential_form"]
+    if "page_contains_login_form" in body:
+        request_body["page_contains_login_form"] = body["page_contains_login_form"]
+    if "social_engineering_terms" in body:
+        request_body["social_engineering_terms"] = body["social_engineering_terms"]
+    if "lure_type" in body:
+        request_body["lure_type"] = body["lure_type"]
+    if "scenario" in body:
+        request_body["scenario"] = body["scenario"]
 
     return ApiSecurityEvent(
         event_id=incident_id,
@@ -206,22 +480,12 @@ def build_phishing_event(
         ),
         request=RequestInfo(
             method="POST",
-            endpoint=PHISHING_PATH,
+            endpoint=endpoint,
             query_params={},
             headers={
                 "X-ThreatGuard-Lab": "PHISHING",
             },
-            body={
-                "username": body.get("captured_username"),
-                "password_submitted": body.get("password_submitted"),
-                "credential_submission_observed": body.get(
-                    "credential_submission_observed"
-                ),
-                "credential_capture_observed": body.get(
-                    "credential_capture_observed"
-                ),
-                "phishing_url": body.get("phishing_url"),
-            },
+            body=request_body,
         ),
         response=ResponseInfo(
             status_code=target_response["status_code"],
@@ -229,7 +493,7 @@ def build_phishing_event(
         ),
         resource=ResourceInfo(
             resource_type="phishing_page",
-            resource_id=PHISHING_PATH,
+            resource_id=endpoint,
             owner_id="threatguard-lab",
             is_sensitive=True,
         ),
