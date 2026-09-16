@@ -10,6 +10,15 @@ export const ATTACK_TYPES = [
   "API Reconnaissance / Endpoint Enumeration",
   "Security Misconfiguration",
   "Cross-Site Scripting (XSS)",
+  "Credential Phishing / Suspicious URL",
+  "DDoS Attack",
+  "DoS Request Flooding",
+  "Port Scanning",
+  "Network Brute Force",
+  "Keylogging Activity",
+  "Suspicious Process Execution",
+  "Reverse Shell Activity",
+  "Privilege Escalation",
 ];
 
 export const ATTACK_FILTER_OPTIONS = [
@@ -30,6 +39,15 @@ export const ATTACK_FILTER_OPTIONS = [
   },
   { value: "SECURITY_MISCONFIGURATION", label: "Security Misconfiguration" },
   { value: "XSS", label: "Cross-Site Scripting (XSS)" },
+  { value: "PHISHING", label: "Credential Phishing / Suspicious URL" },
+  { value: "DDOS", label: "DDoS Attack" },
+  { value: "DOS_FLOODING", label: "DoS Request Flooding" },
+  { value: "PORT_SCANNING", label: "Port Scanning" },
+  { value: "NETWORK_BRUTE_FORCE", label: "Network Brute Force" },
+  { value: "KEYLOGGING", label: "Keylogging Activity" },
+  { value: "SUSPICIOUS_PROCESS_EXECUTION", label: "Suspicious Process Execution" },
+  { value: "REVERSE_SHELL", label: "Reverse Shell Activity" },
+  { value: "PRIVILEGE_ESCALATION", label: "Privilege Escalation" },
 ];
 
 export function formatAttackType(type) {
@@ -168,5 +186,61 @@ export const ATTACK_SCENARIOS = [
     owner_id: "system",
     is_sensitive: true,
     is_authenticated: false,
+  },
+  {
+    id: "session-abuse",
+    name: "Unauthorized Session / Transaction Abuse",
+    description: "An active user session is abused from an unexpected source to submit an unapproved financial transaction.",
+    method: "POST",
+    endpoint: "/api/transaction/transfer",
+    query_params: {},
+    body: {
+      action: "transfer",
+      amount: 5000,
+      session_anomaly: "unexpected_source_ip",
+      destination_account: "acct_unauthorized_99"
+    },
+    resource_type: "transaction",
+    resource_id: "transfer",
+    owner_id: "demo-user",
+    is_sensitive: true,
+  },
+  {
+    id: "fake-shopping",
+    name: "Fake Shopping / Fraudulent Website",
+    description: "Deceptive e-commerce checkout flow simulating price manipulation and fraudulent order processing.",
+    method: "POST",
+    endpoint: "/api/checkout",
+    query_params: {},
+    body: {
+      action: "checkout",
+      store: "bargain-deals.example.test",
+      quantity: 500,
+      tampered_price: 1.0,
+      original_price: 499.0,
+      repeated_requests: true
+    },
+    resource_type: "checkout",
+    resource_id: "order",
+    owner_id: "demo-user",
+    is_sensitive: true,
+  },
+  {
+    id: "fake-bank",
+    name: "Fake Bank / Suspicious URL",
+    description: "Brand impersonation and credential capture targeting a synthetic banking verification portal.",
+    method: "POST",
+    endpoint: "/lab/phishing/login",
+    query_params: { target: "https://secure-bank.example.test/verify" },
+    body: {
+      action: "login",
+      username: "victim_demo",
+      portal: "secure-bank.example.test",
+      lure: "urgent_account_verification"
+    },
+    resource_type: "financial_portal",
+    resource_id: "login",
+    owner_id: null,
+    is_sensitive: true,
   },
 ];

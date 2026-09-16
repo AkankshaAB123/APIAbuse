@@ -12,6 +12,7 @@ from typing import Any
 
 from .contracts import (
     ApiSecurityEvent,
+    EndpointInfo,
     IdentityInfo,
     NetworkInfo,
     RequestInfo,
@@ -30,6 +31,24 @@ def adapt_backend_event(event: Any) -> ApiSecurityEvent:
     response = _as_mapping(payload["response"])
     resource = _as_mapping(payload["resource"])
     timestamp = payload["timestamp"]
+    endpoint_data = payload.get("endpoint")
+    endpoint_info = None
+    if endpoint_data is not None:
+        ep = _as_mapping(endpoint_data)
+        endpoint_info = EndpointInfo(
+            event_type=ep.get("event_type"),
+            hostname=ep.get("hostname"),
+            username=ep.get("username"),
+            process_name=ep.get("process_name"),
+            process_id=ep.get("process_id"),
+            parent_process=ep.get("parent_process"),
+            executable_path=ep.get("executable_path"),
+            command_line=ep.get("command_line"),
+            privilege_level=ep.get("privilege_level"),
+            keyboard_hook=ep.get("keyboard_hook"),
+            network_connection=ep.get("network_connection"),
+            elevated=ep.get("elevated"),
+        )
 
     return ApiSecurityEvent(
         schema_version=str(payload.get("schema_version", "1.0")),
@@ -38,6 +57,13 @@ def adapt_backend_event(event: Any) -> ApiSecurityEvent:
         network=NetworkInfo(
             source_ip=str(network["source_ip"]),
             user_agent=network.get("user_agent"),
+            destination_ip=network.get("destination_ip"),
+            source_port=network.get("source_port"),
+            destination_port=network.get("destination_port"),
+            protocol=network.get("protocol"),
+            bytes=network.get("bytes"),
+            packets=network.get("packets"),
+            connection_status=network.get("connection_status"),
         ),
         identity=IdentityInfo(
             user_id=identity.get("user_id"),
@@ -63,6 +89,7 @@ def adapt_backend_event(event: Any) -> ApiSecurityEvent:
             owner_id=resource.get("owner_id"),
             is_sensitive=bool(resource.get("is_sensitive", False)),
         ),
+        endpoint=endpoint_info,
     )
 
 
@@ -80,6 +107,12 @@ def to_backend_detector_result(result: Any) -> dict[str, Any]:
         "window_seconds": metadata.get("window_seconds", 0),
         "details": details,
     }
+    if "domain" in payload:
+        payload["domain"] = (
+            payload["domain"].value
+            if hasattr(payload["domain"], "value")
+            else str(payload["domain"])
+        )
     return payload
 
 
@@ -100,4 +133,7 @@ def _as_mapping(value: Any) -> Mapping[str, Any]:
         return value
     if hasattr(value, "model_dump"):
         return value.model_dump()
+    if hasattr(value, "__dataclass_fields__"):
+        from dataclasses import asdict
+        return asdict(value)
     raise TypeError("Expected a mapping or a Pydantic model with model_dump()")

@@ -18,7 +18,10 @@ from .scenarios import (
     sql_injection_event,
     ssrf_event,
     successful_login_event,
+    fake_shopping_event,
+    fake_bank_event,
     suspicious_process_execution_event,
+
 )
 
 __all__ = [

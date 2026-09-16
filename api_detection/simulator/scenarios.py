@@ -578,3 +578,68 @@ def endpoint_privilege_escalation_event(
             elevated=True,
         ),
     )
+
+# ---------------------------------------------------------------------------
+# New deterministic scenarios for Member 3 (Fake Shopping & Fake Bank)
+# ---------------------------------------------------------------------------
+
+def fake_shopping_event(
+    event_id: str = "evt-fake-shopping-001",
+) -> ApiSecurityEvent:
+    """Fake Shopping / Fraudulent Website scenario.
+
+    Represents a user interacting with a malicious e‑commerce site.
+    All scenario‑specific data is placed in ``request.body``.
+    """
+    base = normal_event(event_id)
+    return replace(
+        base,
+        request=RequestInfo(
+            method="POST",
+            endpoint="/api/checkout",
+            body={
+                "scenario": "FAKE_SHOPPING",
+                "url": "https://cheap-deals.example.test/shop",
+                "domain": "cheap-deals.example.test",
+                "product": "Premium Headphones",
+                "price": 999,
+                "payment": "completed",
+                "transaction": "suspicious",
+                "social_engineering": True,
+                "outcome": "product_not_delivered",
+                "website_status": "unavailable_after_purchase",
+            },
+        ),
+        endpoint=EndpointInfo(event_type="FAKE_SHOPPING"),
+    )
+
+
+def fake_bank_event(
+    event_id: str = "evt-fake-bank-001",
+) -> ApiSecurityEvent:
+    """Fake Bank / Suspicious URL scenario.
+
+    Represents a phishing‑style bank login link.
+    All scenario‑specific data is placed in ``request.body``.
+    """
+    base = normal_event(event_id)
+    return replace(
+        base,
+        request=RequestInfo(
+            method="GET",
+            endpoint="/api/phishing/link",
+            body={
+                "scenario": "FAKE_BANK",
+                "url": "https://secure-demo-bank.example.test/verify",
+                "domain": "secure-demo-bank.example.test",
+                "brand": "DemoBank",
+                "brand_impersonation": True,
+                "login_language": True,
+                "verification_language": True,
+                "message_context": "Your account requires immediate verification",
+                "user_action": "clicked_link",
+                "url_structure": "suspicious",
+            },
+        ),
+        endpoint=EndpointInfo(event_type="FAKE_BANK"),
+    )

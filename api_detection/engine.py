@@ -15,6 +15,8 @@ from api_detection.detectors import (
     detect_ddos,
     detect_dos_flooding,
     detect_endpoint_enumeration,
+    detect_fake_bank,
+    detect_fake_shopping,
     detect_keylogging,
     detect_network_brute_force,
     detect_port_scanning,
@@ -26,6 +28,8 @@ from api_detection.detectors import (
     detect_ssrf,
     detect_suspicious_process_execution,
     detect_xss,
+    detect_phishing,
+    detect_malicious_url,
 )
 
 
@@ -83,7 +87,11 @@ def run_all_detectors(
             recent_events,
         ),
 
-        detect_business_flow_abuse(
+        detect_fake_shopping(
+            event,
+            recent_events,
+        ),
+        detect_fake_bank(
             event,
             recent_events,
         ),
@@ -142,6 +150,16 @@ def run_all_detectors(
         ),
 
         detect_privilege_escalation(
+            event,
+            recent_events,
+        ),
+
+        detect_phishing(
+            event,
+            recent_events,
+        ),
+
+        detect_malicious_url(
             event,
             recent_events,
         ),

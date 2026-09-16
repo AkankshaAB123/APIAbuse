@@ -1,10 +1,13 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from backend.routes.auth import router as auth_router
 from backend.routes.events import router as events_router
 from backend.routes.threats import router as threats_router
 from backend.routes.security_check import router as security_check_router
-
+from backend.routes.lab import router as lab_router
+from backend.routes.demo_target import router as demo_target_router
+from backend.routes.xss_demo import router as xss_demo_router
 app = FastAPI(
     title="API Threat Detection System",
     description="Backend for the intelligent API and network threat detection system",
@@ -22,6 +25,7 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:5173",
         "http://127.0.0.1:5173",
+        "http://10.165.192.186:5173",
         "https://apiabuse.onrender.com",
     ],
 
@@ -36,6 +40,8 @@ app.add_middleware(
 # =========================================================
 # ROUTES
 # =========================================================
+app.include_router(auth_router)
+app.include_router(xss_demo_router)
 app.include_router(security_check_router)
 app.include_router(
     events_router
@@ -45,6 +51,22 @@ app.include_router(
     threats_router
 )
 
+app.include_router(
+    lab_router
+)
+app.include_router(
+    demo_target_router
+)
+
+
+# =========================================================
+# STATIC FILES
+# =========================================================
+from fastapi.staticfiles import StaticFiles
+import os
+
+static_dir = os.path.join(os.path.dirname(__file__), "static")
+app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 # =========================================================
 # ROOT

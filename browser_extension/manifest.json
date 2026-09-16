@@ -1,0 +1,22 @@
+{
+  "manifest_version": 3,
+  "name": "ThreatGuard XSS Protector",
+  "version": "1.0",
+  "description": "Automatically detects XSS and malicious URLs using the ThreatGuard Enterprise IDS.",
+  "permissions": [
+    "webNavigation",
+    "notifications",
+    "storage"
+  ],
+  "host_permissions": [
+    "<all_urls>",
+    "http://localhost:8000/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "ThreatGuard Status"
+  }
+}

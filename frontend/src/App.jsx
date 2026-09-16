@@ -51,13 +51,17 @@ import NewSecurityTest from "./pages/NewSecurityTest";
 import AlertsPage from "./pages/AlertsPage";
 import ApiInventory from "./pages/ApiInventory";
 import AICopilotPage from "./pages/AICopilotPage";
+import AttackerConsole from "./pages/AttackerConsole";
+import LiveSecurityDashboard from "./pages/LiveSecurityDashboard";
+import DeviceDashboard from "./pages/DeviceDashboard";
 
 import {
   getThreats,
-  getStatistics
+  getStatistics,
+  clearAuthSession
 } from "./services/api";
 import { formatAttackType } from "./data/attackTypes";
-import { isAdmin, ROLE_LABELS } from "./data/roles";
+import { isAdmin, isDevice, ROLE_LABELS } from "./data/roles";
 import { AccessRestricted } from "./components/States";
 
 
@@ -2074,9 +2078,17 @@ function App() {
   };
 
   const logout = () => {
-    localStorage.removeItem("threatguardUser");
+    clearAuthSession();
     setUser(null);
   };
+
+  useEffect(() => {
+    const handleExpired = () => {
+      logout();
+    };
+    window.addEventListener("threatguard:session_expired", handleExpired);
+    return () => window.removeEventListener("threatguard:session_expired", handleExpired);
+  }, []);
 
   const shell = (children) => (
     <Layout user={user} onLogout={logout}>
@@ -2092,6 +2104,15 @@ function App() {
             role={ROLE_LABELS[user?.role] || "Security Analyst"}
           />
         );
+
+  const socShell = (children) =>
+    isDevice(user)
+      ? shell(
+          <AccessRestricted
+            role="Protected Device (Restricted to Device View)"
+          />
+        )
+      : shell(children);
 
   return (
 
@@ -2111,8 +2132,9 @@ function App() {
         <Route
           path="/"
           element={
-            shell(<Dashboard user={user} />)
-
+            isDevice(user)
+              ? shell(<DeviceDashboard user={user} />)
+              : shell(<Dashboard user={user} />)
           }
         />
 
@@ -2120,7 +2142,7 @@ function App() {
         <Route
           path="/threats"
           element={
-            shell(<ThreatsPage />)
+            socShell(<ThreatsPage />)
 
           }
         />
@@ -2129,7 +2151,7 @@ function App() {
         <Route
           path="/analytics"
           element={
-            shell(<AnalyticsPage />)
+            socShell(<AnalyticsPage />)
 
           }
         />
@@ -2175,23 +2197,27 @@ function App() {
 
         <Route
           path="/alerts"
-          element={
-            shell(<AlertsPage />)
-          }
+          element={socShell(<AlertsPage />)}
+        />
+
+        <Route
+          path="/soc-live"
+          element={socShell(<LiveSecurityDashboard />)}
+        />
+
+        <Route
+          path="/attacker-console"
+          element={adminShell(<AttackerConsole />)}
         />
 
         <Route
           path="/api-inventory"
-          element={
-            shell(<ApiInventory />)
-          }
+          element={socShell(<ApiInventory />)}
         />
 
         <Route
           path="/ai-copilot"
-          element={
-            shell(<AICopilotPage />)
-          }
+          element={socShell(<AICopilotPage />)}
         />
 
           </>
