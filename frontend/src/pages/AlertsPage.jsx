@@ -18,21 +18,29 @@ function AlertsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const loadAlerts = async () => {
+  const loadAlerts = async ({ quiet = false } = {}) => {
     try {
-      setLoading(true);
+      if (!quiet) setLoading(true);
       setError("");
       const data = await getThreats();
       setThreats(Array.isArray(data) ? data : []);
     } catch (err) {
-      setError(err.message || "Unable to load alerts.");
+      if (!quiet) {
+        setError(err.message || "Unable to load alerts.");
+      }
     } finally {
-      setLoading(false);
+      if (!quiet) setLoading(false);
     }
   };
 
   useEffect(() => {
     loadAlerts();
+    const interval = setInterval(() => {
+      if (!document.hidden) {
+        loadAlerts({ quiet: true });
+      }
+    }, 4000);
+    return () => clearInterval(interval);
   }, []);
 
   const alerts = threats
@@ -47,15 +55,15 @@ function AlertsPage() {
         labIncident?.classification?.level1 ||
         "API";
 
-      const status = labIncident?.status || processing.mitigation_action || "DETECTED";
-      const evidence = doc.processing?.ai_analysis?.threat_explanation || doc.risk_assessment?.reasons?.join(" ") || "No detailed evidence available.";
+      const status = doc.finalStatus || doc.action || labIncident?.status || processing.mitigation_action || "DETECTED";
+      const evidence = doc.evidence || doc.processing?.ai_analysis?.threat_explanation || doc.risk_assessment?.reasons?.join(" ") || "Suspicious attack pattern detected.";
 
       return {
-        id: doc.event_id || processing.event_id,
+        id: doc.id || doc.event_id || processing.event_id,
         timestamp: doc.timestamp || labIncident?.lifecycle?.timestamps?.ATTACKING,
-        attackType: risk.attack_types?.[0] || processing.ai_analysis?.attack_type,
-        severity: risk.risk_level || "HIGH",
-        riskScore: risk.risk_score ?? 0,
+        attackType: doc.attackType || risk.attack_types?.[0] || processing.ai_analysis?.attack_type,
+        severity: doc.severity || risk.risk_level || "HIGH",
+        riskScore: doc.riskScore ?? risk.risk_score ?? 0,
         domain: domain,
         status: status,
         evidence: evidence,

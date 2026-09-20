@@ -68,6 +68,22 @@ def get_threats():
             else:
                 impact = impact_data
 
+        # Extract detector evidence
+        reasons = risk_assessment.get("reasons", [])
+        evidence_text = ""
+        for det in detector_results:
+            if isinstance(det, dict) and det.get("detected") and det.get("evidence"):
+                ev_list = det.get("evidence")
+                if isinstance(ev_list, list) and ev_list:
+                    first_ev = ev_list[0]
+                    evidence_text = first_ev.get("message") or first_ev.get("code", "")
+                    break
+        if not evidence_text and reasons:
+            evidence_text = reasons[0]
+
+        resp_info = document.get("response", {})
+        status_code = resp_info.get("status_code") or (403 if processing.get("mitigation_action") in ("BLOCK", "RATE_LIMIT") else 200)
+
         threats.append(
             {
                 "id": document.get(
@@ -137,6 +153,12 @@ def get_threats():
                 "detectors": detector_results,
 
                 "impact": impact,
+
+                "statusCode": status_code,
+
+                "evidence": evidence_text,
+
+                "finalStatus": "BLOCKED" if processing.get("mitigation_action") == "BLOCK" else processing.get("mitigation_action", "ALLOW"),
             }
         )
 

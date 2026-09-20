@@ -263,7 +263,12 @@ def create_gateway_app(
             try:
                 parsed_body = json.loads(body_bytes.decode("utf-8"))
             except Exception:
-                parsed_body = None
+                try:
+                    parsed_qs = urllib.parse.parse_qs(body_bytes.decode("utf-8"))
+                    if parsed_qs:
+                        parsed_body = {k: v[0] if len(v) == 1 else v for k, v in parsed_qs.items()}
+                except Exception:
+                    parsed_body = None
 
         now_iso = datetime.now(timezone.utc).isoformat()
         event_id = f"evt-gw-{uuid4().hex[:10]}"
@@ -289,6 +294,7 @@ def create_gateway_app(
             "request": {
                 "method": method,
                 "endpoint": path,
+                "query_params": dict(request.query_params),
                 "headers": {k: v for k, v in request.headers.items() if k.lower() not in ("authorization", "cookie")},
                 "body": parsed_body,
             },
@@ -313,6 +319,7 @@ def create_gateway_app(
             risk_score = float(risk_data.get("risk_score", 0.0))
             risk_level = str(risk_data.get("risk_level", "LOW"))
             reasons = risk_data.get("reasons", [])
+            attack_types = risk_data.get("attack_types") or []
             reason_str = reasons[0] if reasons else f"Mitigation set to {mitigation_action}"
 
             logger.info(
@@ -337,20 +344,43 @@ def create_gateway_app(
         # 4. If mitigated (BLOCK, RATE_LIMIT, etc.), update table and DO NOT call target
         # ---------------------------------------------------------------------
         if mitigation_action in ("BLOCK", "RATE_LIMIT", "QUARANTINE", "TRANSACTION_BLOCK", "URL_BLOCK"):
+            effective_action = "BLOCK" if "SQL_INJECTION" in attack_types else mitigation_action
             table.update_state(
                 source_ip=source_ip,
-                action=mitigation_action,
+                action=effective_action,
                 reason=reason_str,
                 event_id=event_id,
                 risk_score=risk_score,
                 risk_level=risk_level,
             )
             logger.warning(
-                f"Updated gateway enforcement state: IP {source_ip} -> {mitigation_action} "
+                f"Updated gateway enforcement state: IP {source_ip} -> {effective_action} "
                 f"(Score: {risk_score}, Level: {risk_level}). Target was NOT reached."
             )
 
-            if mitigation_action == "RATE_LIMIT":
+            # Synchronize active PEP enforcement to backend MongoDB event
+            blocked_status = 403 if effective_action != "RATE_LIMIT" else 429
+            try:
+                from backend.database import events_collection
+                events_collection.update_one(
+                    {"event_id": event_id},
+                    {
+                        "$set": {
+                            "processing.mitigation_action": effective_action,
+                            "processing.mitigation": {
+                                "enforced": True,
+                                "result": effective_action,
+                                "status_code": blocked_status,
+                            },
+                            "response.status_code": blocked_status,
+                            "after_mitigation.status_code": blocked_status,
+                        }
+                    },
+                )
+            except Exception:
+                pass
+
+            if effective_action == "RATE_LIMIT":
                 return JSONResponse(
                     status_code=429,
                     content={
@@ -369,23 +399,25 @@ def create_gateway_app(
                 content={
                     "error": "access_forbidden",
                     "status": "blocked",
-                    "enforcement_action": mitigation_action,
+                    "enforcement_action": effective_action,
                     "reason": f"ThreatGuard Active Defense: Source IP {source_ip} is blocked.",
                     "details": reason_str,
+                    "risk_score": risk_score,
                     "risk_level": risk_level,
                     "event_id": event_id,
                 },
-                headers={"X-ThreatGuard-Action": mitigation_action},
+                headers={"X-ThreatGuard-Action": effective_action, "X-ThreatGuard-Risk-Score": str(risk_score)},
             )
 
         # ---------------------------------------------------------------------
         # 5. Forward request to protected demo target (ALLOW path)
         # ---------------------------------------------------------------------
         try:
+            target_path = f"{path}?{request.url.query}" if request.url.query else path
             target_status, target_headers, target_body = forward_target_fn(
-                method, path, req_headers, body_bytes
+                method, target_path, req_headers, body_bytes
             )
-            logger.info(f"Target responded with status HTTP {target_status} for {method} {path}")
+            logger.info(f"Target responded with status HTTP {target_status} for {method} {target_path}")
         except Exception as exc:
             logger.error(f"Protected target unreachable at {cfg.target_base_url}: {exc}")
             return JSONResponse(

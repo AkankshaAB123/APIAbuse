@@ -43,6 +43,7 @@ import AttackChart from "./components/AttackChart";
 import RiskChart from "./components/RiskChart";
 import ThreatFilters from "./components/ThreatFilters";
 import ThreatTable from "./components/ThreatTable";
+import RiskBadge from "./components/RiskBadge";
 import ThreatDetails from "./pages/ThreatDetails";
 import AttackSimulation from "./pages/AttackSimulation";
 import EnterpriseDashboard from "./pages/EnterpriseDashboard";
@@ -139,11 +140,13 @@ function Dashboard({ user }) {
      LOAD REAL DASHBOARD DATA
   ======================================================= */
 
-  const loadDashboard = async () => {
+  const loadDashboard = async ({ quiet = false } = {}) => {
 
     try {
 
-      setLoading(true);
+      if (!quiet) {
+        setLoading(true);
+      }
 
       setError("");
 
@@ -172,21 +175,25 @@ function Dashboard({ user }) {
 
     catch (err) {
 
-      console.error(
-        "Failed to load dashboard:",
-        err
-      );
+      if (!quiet) {
+        console.error(
+          "Failed to load dashboard:",
+          err
+        );
 
-      setError(
-        err.message ||
-        "Failed to load dashboard data."
-      );
+        setError(
+          err.message ||
+          "Failed to load dashboard data."
+        );
+      }
 
     }
 
     finally {
 
-      setLoading(false);
+      if (!quiet) {
+        setLoading(false);
+      }
 
     }
 
@@ -196,6 +203,14 @@ function Dashboard({ user }) {
   useEffect(() => {
 
     loadDashboard();
+
+    const interval = setInterval(() => {
+      if (!document.hidden) {
+        loadDashboard({ quiet: true });
+      }
+    }, 4000);
+
+    return () => clearInterval(interval);
 
   }, []);
 
@@ -541,16 +556,19 @@ function Dashboard({ user }) {
       <div className="dashboard-soc-grid">
         <section className="information-card">
           <div className="section-header">
-            <h2>Recent Critical Threats</h2>
-            <Link className="table-action-link" to="/alerts">VIEW ALERTS</Link>
+            <h2>Recent Active Threats</h2>
+            <Link className="table-action-link" to="/threats">VIEW ALL</Link>
           </div>
-          {threats.filter((threat) => threat.severity === "CRITICAL").slice(0, 4).length === 0 ? (
-            <p className="placeholder-text">No critical threats found.</p>
+          {threats.filter((threat) => ["CRITICAL", "HIGH"].includes(String(threat.severity || "").toUpperCase())).slice(0, 5).length === 0 ? (
+            <p className="placeholder-text">No active threats found.</p>
           ) : (
-            threats.filter((threat) => threat.severity === "CRITICAL").slice(0, 4).map((threat) => (
+            threats.filter((threat) => ["CRITICAL", "HIGH"].includes(String(threat.severity || "").toUpperCase())).slice(0, 5).map((threat) => (
               <Link className="mini-threat-row" key={threat.id} to={`/threat/${threat.id}`}>
-                <span>{formatAttackType(threat.attackType)}</span>
-                <strong>{threat.riskScore}</strong>
+                <div style={{display: "flex", flexDirection: "column", gap: "2px"}}>
+                  <span style={{fontWeight: "600"}}>{formatAttackType(threat.attackType)}</span>
+                  <small style={{fontSize: "0.75rem", color: "#8b949e"}}>{threat.endpoint || "API Endpoint"} &bull; {threat.action || "BLOCKED"}</small>
+                </div>
+                <RiskBadge score={threat.riskScore} severity={threat.severity} />
               </Link>
             ))
           )}
@@ -567,6 +585,15 @@ function Dashboard({ user }) {
           <div className="information-row"><span>Analyzed Requests</span><strong>{totalRequests}</strong></div>
         </section>
       </div>
+
+      {/* =================================================
+          LIVE THREAT TABLE ON DASHBOARD
+      ================================================= */}
+      {threats.length > 0 && (
+        <div style={{ marginTop: "24px" }}>
+          <ThreatTable threats={threats.slice(0, 6)} />
+        </div>
+      )}
 
 
       {/* =================================================
@@ -814,11 +841,13 @@ function ThreatsPage() {
   ] = useState("");
 
 
-  const loadThreats = async () => {
+  const loadThreats = async ({ quiet = false } = {}) => {
 
     try {
 
-      setLoading(true);
+      if (!quiet) {
+        setLoading(true);
+      }
 
       setError("");
 
@@ -835,21 +864,25 @@ function ThreatsPage() {
 
     catch (err) {
 
-      console.error(
-        "Failed to load threats:",
-        err
-      );
+      if (!quiet) {
+        console.error(
+          "Failed to load threats:",
+          err
+        );
 
-      setError(
-        err.message ||
-        "Failed to load threats."
-      );
+        setError(
+          err.message ||
+          "Failed to load threats."
+        );
+      }
 
     }
 
     finally {
 
-      setLoading(false);
+      if (!quiet) {
+        setLoading(false);
+      }
 
     }
 
@@ -859,6 +892,14 @@ function ThreatsPage() {
   useEffect(() => {
 
     loadThreats();
+
+    const interval = setInterval(() => {
+      if (!document.hidden) {
+        loadThreats({ quiet: true });
+      }
+    }, 4000);
+
+    return () => clearInterval(interval);
 
   }, []);
 

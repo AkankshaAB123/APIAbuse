@@ -6,6 +6,8 @@ from backend.routes.demo_target import router as demo_target_router
 from backend.routes.events import router as events_router
 from backend.routes.threats import router as threats_router
 from backend.routes.security_check import router as security_check_router
+from backend.routes.sqli_lab import router as sqli_lab_router
+from backend.routes.sqli_target import router as sqli_target_router
 
 
 app = FastAPI(
@@ -49,6 +51,10 @@ app.include_router(events_router)
 app.include_router(threats_router)
 
 app.include_router(demo_target_router)
+
+app.include_router(sqli_lab_router)
+
+app.include_router(sqli_target_router)
 
 
 # =========================================================
