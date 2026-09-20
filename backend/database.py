@@ -19,3 +19,4 @@ client = MongoClient(MONGODB_URI)
 database = client[MONGODB_DATABASE]
 
 events_collection = database["events"]
+users_collection = database["users"]

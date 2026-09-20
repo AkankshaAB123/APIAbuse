@@ -1,9 +1,12 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from backend.routes.auth import router as auth_router
+from backend.routes.demo_target import router as demo_target_router
 from backend.routes.events import router as events_router
 from backend.routes.threats import router as threats_router
 from backend.routes.security_check import router as security_check_router
+
 
 app = FastAPI(
     title="API Threat Detection System",
@@ -36,14 +39,16 @@ app.add_middleware(
 # =========================================================
 # ROUTES
 # =========================================================
-app.include_router(security_check_router)
-app.include_router(
-    events_router
-)
 
-app.include_router(
-    threats_router
-)
+app.include_router(auth_router)
+
+app.include_router(security_check_router)
+
+app.include_router(events_router)
+
+app.include_router(threats_router)
+
+app.include_router(demo_target_router)
 
 
 # =========================================================
@@ -52,8 +57,6 @@ app.include_router(
 
 @app.get("/")
 def root():
-
     return {
-        "message":
-            "API Threat Detection Backend is running"
+        "message": "API Threat Detection Backend is running"
     }
