@@ -19,6 +19,8 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.content.Intent
+import android.net.Uri
 import com.threatguard.agent.api.ApiClient
 import com.threatguard.agent.model.ProcessingResult
 import com.threatguard.agent.model.ThreatDetail
@@ -120,6 +122,57 @@ fun HomeScreen(
         }
 
         item {
+            Card(
+                colors = CardDefaults.cardColors(containerColor = CyberSurfaceVariant),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(1.dp, DangerRed.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Surface(color = DangerRed.copy(alpha = 0.2f), shape = RoundedCornerShape(8.dp), modifier = Modifier.size(36.dp)) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(Icons.Default.Warning, contentDescription = null, tint = DangerRed, modifier = Modifier.size(20.dp))
+                            }
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("VICTIM-SIDE PHISHING DEMO", color = DangerRed, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            Text("Real controlled HTTP GET request to backend", color = TextSecondary, fontSize = 11.sp)
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text(
+                        "Tapping this button launches the system browser to visit the controlled phishing verification scenario. The request enters the real EventProcessor pipeline, is detected and blocked (HTTP 403), and triggers a companion security alert on this device.",
+                        color = TextPrimary,
+                        fontSize = 12.sp,
+                        lineHeight = 17.sp
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Button(
+                        onClick = {
+                            val baseUrl = ApiClient.getSavedBaseUrl(context)
+                            val cleanBase = if (baseUrl.endsWith("/")) baseUrl else "$baseUrl/"
+                            val phishingUrl = cleanBase + "lab/phishing/verify"
+                            val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse(phishingUrl)).apply {
+                                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                            }
+                            context.startActivity(browserIntent)
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = DangerRed, contentColor = Color.White),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.OpenInBrowser, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Open Controlled Phishing Scenario", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    }
+                }
+            }
+        }
+
+        item {
             Button(
                 onClick = {
                     scope.launch {
@@ -159,7 +212,7 @@ fun HomeScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("REAL LAPTOP / HOST INCIDENTS", color = NeonCyan, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Text("REAL THREAT INCIDENTS (MONITORED)", color = NeonCyan, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     TextButton(onClick = { onNavigateToIncidents() }) {
                         Text("View All (${recentBackendIncidents.size})", color = NeonCyan, fontSize = 12.sp)
                     }
@@ -704,6 +757,132 @@ fun SettingsScreen() {
                     modifier = Modifier.padding(12.dp),
                     fontSize = 13.sp,
                     fontFamily = FontFamily.Monospace
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+        HorizontalDivider(color = CyberSurfaceVariant)
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Text("DEVICE AUTHENTICATION & IDENTITY", color = NeonCyan, fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+        Text("Authenticate this Android agent with the ThreatGuard backend to receive authorized alerts scoped to your device.", color = TextSecondary, fontSize = 13.sp)
+
+        var username by remember { mutableStateOf(ApiClient.getSavedUsername(context) ?: "device") }
+        var password by remember { mutableStateOf("") }
+        var authStatus by remember { mutableStateOf<String?>(null) }
+        var isAuthenticating by remember { mutableStateOf(false) }
+
+        val isAuthenticated = ApiClient.isAuthenticated(context)
+        val currentRole = ApiClient.getSavedRole(context)
+        val currentDeviceIp = ApiClient.getSavedDeviceIp(context)
+
+        if (isAuthenticated) {
+            Surface(
+                color = CyberSurfaceVariant,
+                shape = RoundedCornerShape(8.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("AUTHENTICATED", color = NeonGreen, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        Text(currentRole ?: "DEVICE", color = NeonCyan, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    }
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text("User: ${ApiClient.getSavedUsername(context)}", color = TextPrimary, fontSize = 13.sp)
+                    Text("Device Scope IP: ${currentDeviceIp ?: "10.165.192.186"}", color = TextSecondary, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Button(
+                        onClick = {
+                            ApiClient.clearAuthSession(context)
+                            authStatus = "Logged out."
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = DangerRed.copy(alpha = 0.2f), contentColor = DangerRed),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text("Logout")
+                    }
+                }
+            }
+        } else {
+            OutlinedTextField(
+                value = username,
+                onValueChange = { username = it },
+                label = { Text("Username") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = NeonCyan,
+                    unfocusedBorderColor = TextSecondary,
+                    focusedTextColor = TextPrimary,
+                    unfocusedTextColor = TextPrimary
+                )
+            )
+
+            OutlinedTextField(
+                value = password,
+                onValueChange = { password = it },
+                label = { Text("Password") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = NeonCyan,
+                    unfocusedBorderColor = TextSecondary,
+                    focusedTextColor = TextPrimary,
+                    unfocusedTextColor = TextPrimary
+                )
+            )
+
+            Button(
+                onClick = {
+                    scope.launch {
+                        isAuthenticating = true
+                        authStatus = "Authenticating with backend..."
+                        val api = ApiClient.getInstance(context)
+                        val res = api.login(username.trim(), password)
+                        isAuthenticating = false
+                        res.onSuccess { tokenResp ->
+                            ApiClient.saveAuthSession(
+                                context = context,
+                                token = tokenResp.accessToken,
+                                username = tokenResp.user.username,
+                                role = tokenResp.user.role,
+                                deviceIp = tokenResp.user.deviceIp
+                            )
+                            authStatus = "Login successful as ${tokenResp.user.role} (Device Scope: ${tokenResp.user.deviceIp ?: "10.165.192.186"})"
+                        }.onFailure { err ->
+                            authStatus = "Login failed: ${err.message}"
+                        }
+                    }
+                },
+                enabled = !isAuthenticating && username.isNotBlank() && password.isNotBlank(),
+                colors = ButtonDefaults.buttonColors(containerColor = NeonCyan, contentColor = Color.Black),
+                shape = RoundedCornerShape(8.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                if (isAuthenticating) {
+                    CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Color.Black, strokeWidth = 2.dp)
+                    Spacer(modifier = Modifier.width(8.dp))
+                }
+                Text(if (isAuthenticating) "Logging in..." else "Authenticate Device", fontWeight = FontWeight.Bold)
+            }
+        }
+
+        if (authStatus != null) {
+            Surface(
+                color = CyberSurfaceVariant,
+                shape = RoundedCornerShape(8.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = authStatus!!,
+                    color = if (authStatus!!.startsWith("Login successful")) NeonGreen else if (authStatus!!.startsWith("Login failed")) DangerRed else TextPrimary,
+                    modifier = Modifier.padding(12.dp),
+                    fontSize = 13.sp
                 )
             }
         }

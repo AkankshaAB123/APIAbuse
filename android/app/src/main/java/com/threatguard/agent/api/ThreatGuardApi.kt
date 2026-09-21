@@ -15,8 +15,12 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.IOException
 import java.util.concurrent.TimeUnit
 
+import com.threatguard.agent.model.LoginRequest
+import com.threatguard.agent.model.TokenResponse
+
 class ThreatGuardApi(
-    private var baseUrl: String = "http://10.0.2.2:8000/"
+    private var baseUrl: String = "http://10.0.2.2:8000/",
+    private var authToken: String? = null
 ) {
     private val client = OkHttpClient.Builder()
         .connectTimeout(10, TimeUnit.SECONDS)
@@ -41,7 +45,47 @@ class ThreatGuardApi(
         this.baseUrl = cleanUrl
     }
 
+    fun updateAuthToken(token: String?) {
+        this.authToken = token
+    }
+
     fun getBaseUrl(): String = baseUrl
+
+    fun getAuthToken(): String? = authToken
+
+    suspend fun login(username: String, password: String): Result<TokenResponse> = withContext(Dispatchers.IO) {
+        try {
+            val endpointUrl = baseUrl + "auth/login"
+            val loginPayload = json.encodeToString(LoginRequest.serializer(), LoginRequest(username, password))
+            val requestBody = loginPayload.toRequestBody(jsonMediaType)
+
+            val request = Request.Builder()
+                .url(endpointUrl)
+                .post(requestBody)
+                .addHeader("Accept", "application/json")
+                .addHeader("Content-Type", "application/json")
+                .build()
+
+            client.newCall(request).execute().use { response ->
+                val responseBody = response.body?.string() ?: ""
+                if (!response.isSuccessful) {
+                    return@withContext Result.failure(
+                        IOException("HTTP ${response.code}: $responseBody")
+                    )
+                }
+
+                try {
+                    val tokenResp = json.decodeFromString(TokenResponse.serializer(), responseBody)
+                    updateAuthToken(tokenResp.accessToken)
+                    Result.success(tokenResp)
+                } catch (e: Exception) {
+                    Result.failure(IOException("Failed to parse TokenResponse: ${e.message}", e))
+                }
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 
     suspend fun testConnection(): Result<String> = withContext(Dispatchers.IO) {
         try {
@@ -99,13 +143,16 @@ class ThreatGuardApi(
     suspend fun getThreats(): Result<List<ThreatSummary>> = withContext(Dispatchers.IO) {
         try {
             val endpointUrl = baseUrl + "threats"
-            val request = Request.Builder()
+            val requestBuilder = Request.Builder()
                 .url(endpointUrl)
                 .get()
                 .addHeader("Accept", "application/json")
-                .build()
 
-            client.newCall(request).execute().use { response ->
+            if (!authToken.isNullOrBlank()) {
+                requestBuilder.addHeader("Authorization", "Bearer $authToken")
+            }
+
+            client.newCall(requestBuilder.build()).execute().use { response ->
                 val responseBody = response.body?.string() ?: ""
                 if (!response.isSuccessful) {
                     return@withContext Result.failure(
@@ -131,13 +178,16 @@ class ThreatGuardApi(
     suspend fun getThreatDetail(eventId: String): Result<ThreatDetail> = withContext(Dispatchers.IO) {
         try {
             val endpointUrl = baseUrl + "threats/" + eventId
-            val request = Request.Builder()
+            val requestBuilder = Request.Builder()
                 .url(endpointUrl)
                 .get()
                 .addHeader("Accept", "application/json")
-                .build()
 
-            client.newCall(request).execute().use { response ->
+            if (!authToken.isNullOrBlank()) {
+                requestBuilder.addHeader("Authorization", "Bearer $authToken")
+            }
+
+            client.newCall(requestBuilder.build()).execute().use { response ->
                 val responseBody = response.body?.string() ?: ""
                 if (!response.isSuccessful) {
                     return@withContext Result.failure(

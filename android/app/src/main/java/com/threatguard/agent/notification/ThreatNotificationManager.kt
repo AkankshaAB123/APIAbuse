@@ -78,18 +78,20 @@ object ThreatNotificationManager {
         }
 
         val actionText = threat.action.ifBlank { "MONITOR" }
-        val title = "?? ${threat.severity ?: "HIGH"} INCIDENT DETECTED"
-        val content = "Host: $deviceName | Attack: ${threat.attackType} | Action: $actionText"
+        val attackName = threat.attackType.replace("_", " ")
+        val scoreFormatted = String.format(java.util.Locale.US, "%.1f", threat.riskScore)
+        val title = "THREATGUARD SECURITY ALERT"
+        val content = "$attackName | Risk: ${threat.severity ?: "HIGH"} ($scoreFormatted) | Action: $actionText"
 
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_dialog_alert)
             .setContentTitle(title)
             .setContentText(content)
             .setStyle(NotificationCompat.BigTextStyle().bigText(
-                "?? ThreatGuard Security Alert\n" +
-                "Device: $deviceName\n" +
-                "Threat: ${threat.attackType}\n" +
-                "Risk Score: ${threat.riskScore.toInt()}/100 (${threat.severity})\n" +
+                "ThreatGuard Security Alert\n" +
+                "Threat: $attackName\n" +
+                "Host: $deviceName\n" +
+                "Risk: ${threat.severity ?: "HIGH"} ($scoreFormatted)\n" +
                 "Action Enforced: $actionText\n\n" +
                 "Tap to review incident details and AI analysis."
             ))

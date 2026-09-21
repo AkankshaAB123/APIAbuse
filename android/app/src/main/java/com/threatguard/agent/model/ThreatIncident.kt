@@ -43,3 +43,25 @@ data class ThreatDetail(
     @SerialName("processing") val processing: ProcessingResult? = null,
     @SerialName("impact") val impact: ImpactAssessment? = null
 )
+
+@Serializable
+data class UserPublic(
+    @SerialName("user_id") val userId: String,
+    @SerialName("username") val username: String,
+    @SerialName("role") val role: String,
+    @SerialName("device_ip") val deviceIp: String? = null,
+    @SerialName("is_active") val isActive: Boolean = true
+)
+
+@Serializable
+data class LoginRequest(
+    @SerialName("username") val username: String,
+    @SerialName("password") val password: String
+)
+
+@Serializable
+data class TokenResponse(
+    @SerialName("access_token") val accessToken: String,
+    @SerialName("token_type") val tokenType: String = "bearer",
+    @SerialName("user") val user: UserPublic
+)
