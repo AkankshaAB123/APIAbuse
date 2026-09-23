@@ -11,7 +11,8 @@ import {
   FlaskConical,
   Bot,
   Building2,
-  Database
+  Database,
+  ShoppingBag
 } from "lucide-react";
 
 const navSections = [
@@ -36,6 +37,7 @@ const navSections = [
       { to: "/attacker-console", label: "Attacker Console", icon: TerminalSquare },
       { to: "/attack-simulation", label: "Attack Simulation", icon: Swords },
       { to: "/security-test", label: "New Security Test", icon: FlaskConical },
+      { to: "/demo-shop", label: "DemoShop Store", icon: ShoppingBag },
     ],
   },
   {

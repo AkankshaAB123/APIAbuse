@@ -54,6 +54,7 @@ import AICopilotPage from "./pages/AICopilotPage";
 import AttackerConsole from "./pages/AttackerConsole";
 import LiveSecurityDashboard from "./pages/LiveSecurityDashboard";
 import DeviceDashboard from "./pages/DeviceDashboard";
+import DemoShop from "./pages/DemoShop";
 
 import {
   getThreats,
@@ -2119,6 +2120,7 @@ function App() {
     <BrowserRouter>
 
       <Routes>
+        <Route path="/demo-shop" element={<DemoShop />} />
         {!user && (
           <Route
             path="*"
