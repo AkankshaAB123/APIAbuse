@@ -118,17 +118,20 @@ function ApiInventory() {
           <table className="threat-table">
             <thead>
               <tr>
-                <th>Method</th>
-                <th>Endpoint Path</th>
-                <th>Domain</th>
-                <th>Threat Count</th>
-                <th>Max Risk</th>
-                <th>Recent Vectors</th>
+                <th style={{ width: "90px" }}>Method</th>
+                <th style={{ minWidth: "220px" }}>Endpoint Path</th>
+                <th style={{ width: "110px" }}>Domain</th>
+                <th style={{ width: "120px" }}>Threat Count</th>
+                <th style={{ width: "140px" }}>Max Risk</th>
+                <th style={{ minWidth: "200px" }}>Recent Vectors</th>
               </tr>
             </thead>
             <tbody>
               {endpoints.map((ep, idx) => {
                 const riskInfo = getRiskLabel(ep.highestRisk);
+                const uniqueVectors = Array.from(
+                  new Set(ep.recentThreats.map((t) => formatAttackType(t.attackType)).filter(Boolean))
+                );
                 return (
                   <tr key={idx}>
                     <td>
@@ -143,17 +146,23 @@ function ApiInventory() {
                         {ep.method}
                       </span>
                     </td>
-                    <td style={{ fontFamily: "monospace", color: "#f1f5f9", fontSize: "14px" }}>{ep.endpoint}</td>
+                    <td style={{ fontFamily: "monospace", color: "#f1f5f9", fontSize: "13px", wordBreak: "break-all", maxWidth: "320px" }}>
+                      {ep.endpoint}
+                    </td>
                     <td><span className="alert-domain">{ep.domain}</span></td>
-                    <td>{ep.threats}</td>
+                    <td style={{ fontWeight: 600, color: "#f8fafc" }}>{ep.threats}</td>
                     <td>
-                      <span className={"status-badge-inline "}>{riskInfo.label} ({ep.highestRisk})</span>
+                      <span className={"status-badge-inline " + riskInfo.class}>{riskInfo.label} ({ep.highestRisk})</span>
                     </td>
                     <td>
-                      <div className="reason-list" style={{justifyContent: "flex-start"}}>
-                        {ep.recentThreats.map((t, i) => (
-                          <span key={i} className="reason-badge">{formatAttackType(t.attackType)}</span>
-                        ))}
+                      <div className="reason-list" style={{ justifyContent: "flex-start", gap: "6px" }}>
+                        {uniqueVectors.length > 0 ? (
+                          uniqueVectors.map((vectorName, i) => (
+                            <span key={i} className="reason-badge">{vectorName}</span>
+                          ))
+                        ) : (
+                          <span style={{ color: "#64748b", fontSize: "12px" }}>None</span>
+                        )}
                       </div>
                     </td>
                   </tr>

@@ -32,10 +32,15 @@ from backend.services.event_processor import EventProcessor
 from backend.services.detection_service import DetectionService
 from backend.services.impact_service import ImpactService
 from backend.services.mitigation_service import MitigationService
+from backend.services.auth_service import create_access_token
 from api_detection.backend_adapter import adapt_backend_event, run_for_backend
 from api_detection.contracts import DetectorDomain
 from api_detection.detectors import detect_suspicious_process_execution
 from api_detection.simulator import suspicious_process_execution_event
+
+
+def get_auth_headers() -> dict[str, str]:
+    return {"Authorization": f"Bearer {create_access_token(data={'sub': 'admin', 'role': 'ADMIN'})}"}
 
 
 def build_event(event_id: str, search_value: str) -> ApiSecurityEvent:
@@ -204,7 +209,7 @@ def test_processing_result_is_persisted(clean_test_events=None):
 
     assert stored_event is not None
     assert "processing" in stored_event
-    assert len(stored_event["processing"]["detector_results"]) == 21
+    assert len(stored_event["processing"]["detector_results"]) == 22
     assert stored_event["processing"]["risk_assessment"]["risk_level"] == "HIGH"
     assert "impact" in stored_event["processing"]
     assert stored_event["processing"]["impact"] is not None
@@ -329,7 +334,7 @@ def test_detector_domain_preserved_in_detector_result():
     service = DetectionService()
     results = service.detect(backend_event, recent_events=[])
 
-    assert len(results) == 21
+    assert len(results) == 22
 
     spe = next((r for r in results if r.detector_id == "suspicious_process_execution"), None)
     assert spe is not None
@@ -590,7 +595,7 @@ def test_ml_failure_resilience_in_pipeline(clean_test_events=None):
     data = response.json()
     assert data["status"] == "processed"
     assert data["ml_result"] is None
-    assert len(data["detector_results"]) == 21
+    assert len(data["detector_results"]) == 22
     assert data["risk_assessment"] is not None
     assert data["mitigation_action"] == "ALLOW"
 
@@ -606,7 +611,7 @@ def test_recent_events_db_failure_resilience(clean_test_events=None):
         result = processor.process(event)
 
     assert result.status == "processed"
-    assert len(result.detector_results) == 21
+    assert len(result.detector_results) == 22
     assert result.risk_assessment is not None
     assert result.mitigation_action == "ALLOW"
 
@@ -839,7 +844,7 @@ def test_get_threats_exposes_persisted_impact_assessment(clean_test_events=None)
     assert post_res.json()["status"] == "processed"
 
     # Query GET /threats
-    response = client.get("/threats")
+    response = client.get("/threats", headers=get_auth_headers())
     assert response.status_code == 200
     threats = response.json()
     assert isinstance(threats, list)
@@ -898,7 +903,7 @@ def test_get_threats_endpoint_compromise_impact_assessment(clean_test_events=Non
     post_res = client.post("/events", json=laptop_event.model_dump(mode="json"))
     assert post_res.status_code == 200
 
-    response = client.get("/threats")
+    response = client.get("/threats", headers=get_auth_headers())
     assert response.status_code == 200
     threats = response.json()
 
@@ -922,7 +927,7 @@ def test_get_threat_by_id_includes_impact(clean_test_events=None):
     post_res = client.post("/events", json=event.model_dump(mode="json"))
     assert post_res.status_code == 200
 
-    response = client.get("/threats/pytest-threats-impact-001")
+    response = client.get("/threats/pytest-threats-impact-001", headers=get_auth_headers())
     assert response.status_code == 200
     data = response.json()
 

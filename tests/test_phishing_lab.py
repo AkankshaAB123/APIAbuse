@@ -10,12 +10,14 @@ from backend.lab.phishing_lab import (
     reset_phishing_lab_state,
 )
 from backend.main import app
+from backend.services.auth_service import create_access_token
 from api_detection.backend_adapter import adapt_backend_event
 from api_detection.contracts import DetectorDomain
 from api_detection.detectors.phishing import detect_phishing
 
 
 client = TestClient(app)
+AUTH_HEADERS = {"Authorization": f"Bearer {create_access_token(data={'sub': 'admin', 'role': 'ADMIN'})}"}
 
 
 def dynamic_email_payload():
@@ -154,7 +156,10 @@ def test_phishing_lab_flow_detects_blocks_and_persists(monkeypatch):
         assert stored_event["lab_incident"]["status"] == "MITIGATED"
         assert stored_event["lab_incident"]["mitigation"]["result"] == "BLOCKED"
 
-        threat_response = client.get(f"/threats/{incident_id}")
+        threat_response = client.get(
+            f"/threats/{incident_id}",
+            headers=AUTH_HEADERS,
+        )
         assert threat_response.status_code == 200
         assert threat_response.json()["lab_incident"]["attack"][
             "target_endpoint"
@@ -265,7 +270,10 @@ def test_dynamic_synthetic_email_flow_detects_contains_and_persists(monkeypatch)
         assert stored_event["request"]["body"]["suspicious_url"] == dynamic_email_payload()["suspicious_url"]
         assert stored_event["lab_incident"]["attack"]["email"]["sender"] == dynamic_email_payload()["sender"]
 
-        threat_response = client.get(f"/threats/{incident_id}")
+        threat_response = client.get(
+            f"/threats/{incident_id}",
+            headers=AUTH_HEADERS,
+        )
         assert threat_response.status_code == 200
         assert threat_response.json()["lab_incident"]["attack"]["email"]["recipient"] == dynamic_email_payload()["recipient"]
     finally:

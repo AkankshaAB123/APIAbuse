@@ -29,7 +29,7 @@ def test_xss_workshop_demo():
     
     # 3. Verify backend independently detected XSS
     processing_result = data["result"]
-    assert processing_result["status"] == "PROCESSED"
+    assert processing_result["status"] == "processed"
     
     detector_results = processing_result.get("detector_results", [])
     xss_detected = False

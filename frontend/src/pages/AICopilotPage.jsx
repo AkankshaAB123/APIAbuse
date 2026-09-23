@@ -144,7 +144,7 @@ function AICopilotPage() {
           <Search size={18} />
           <h2>Select Incident Context</h2>
         </div>
-        <div className="soc-card-body" style={{ display: "flex", gap: "16px", alignItems: "center" }}>
+        <div className="soc-card-body" style={{ display: "flex", flexWrap: "wrap", gap: "16px", alignItems: "center", justifyContent: "space-between" }}>
           {loadingList ? (
             <span style={{ color: "#64748b", fontSize: "13px" }}>Loading threats...</span>
           ) : threats.length === 0 ? (
@@ -154,7 +154,7 @@ function AICopilotPage() {
               className="filter-select"
               value={selectedThreatId}
               onChange={(e) => setSelectedThreatId(e.target.value)}
-              style={{ minWidth: "300px" }}
+              style={{ minWidth: "260px", maxWidth: "420px", flex: "1 1 260px" }}
             >
               {threats.map((t) => (
                 <option key={t.id} value={t.id}>
@@ -164,13 +164,13 @@ function AICopilotPage() {
             </select>
           )}
           {threatDetails && (
-            <div style={{ marginLeft: "auto", display: "flex", gap: "16px", alignItems: "center" }}>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "12px", alignItems: "center", minWidth: 0 }}>
               <span className="alert-domain">{threatDetails.domain || "API"}</span>
               <RiskBadge
                 score={threatDetails.processing?.risk_assessment?.risk_score || 0}
                 severity={threatDetails.processing?.risk_assessment?.risk_level || "LOW"}
               />
-              <Link to={"/threat/" + selectedThreatId} className="sidebar-link active" style={{padding: "6px 12px"}}>
+              <Link to={"/threat/" + selectedThreatId} className="sidebar-link active" style={{ padding: "6px 14px", whiteSpace: "nowrap" }}>
                 View Full Details
               </Link>
             </div>
@@ -197,10 +197,12 @@ function AICopilotPage() {
                   <strong>{detectedCount}</strong>
                 </div>
                 {detectors.map((d, i) => (
-                  <div key={i} className={"detector-block "}>
+                  <div key={i} className={"detector-block " + (d.detected ? "detected" : "")}>
                     <div className="detector-block-header">
                       <strong>{d.detector_id}</strong>
-                      <span>{d.detected ? "DETECTED" : "CLEAR"}</span>
+                      <span className={d.detected ? "status-pill-detected" : "status-pill-clear"}>
+                        {d.detected ? "DETECTED" : "CLEAR"}
+                      </span>
                     </div>
                   </div>
                 ))}
