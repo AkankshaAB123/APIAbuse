@@ -289,11 +289,12 @@ def create_gateway_app(
             "request": {
                 "method": method,
                 "endpoint": path,
+                "query_params": dict(request.query_params),
                 "headers": {k: v for k, v in request.headers.items() if k.lower() not in ("authorization", "cookie")},
                 "body": parsed_body,
             },
             "response": {
-                "status_code": 401,
+                "status_code": 401 if "login" in path else 200,
                 "latency_ms": 10.0,
             },
             "resource": {
@@ -381,9 +382,10 @@ def create_gateway_app(
         # ---------------------------------------------------------------------
         # 5. Forward request to protected demo target (ALLOW path)
         # ---------------------------------------------------------------------
+        target_path = f"{path}?{request.url.query}" if request.url.query else path
         try:
             target_status, target_headers, target_body = forward_target_fn(
-                method, path, req_headers, body_bytes
+                method, target_path, req_headers, body_bytes
             )
             logger.info(f"Target responded with status HTTP {target_status} for {method} {path}")
         except Exception as exc:

@@ -14,6 +14,8 @@ from pydantic import BaseModel, Field
 router = APIRouter(tags=["Demo Target"])
 
 _DEMO_INVOCATION_COUNTER = 0
+_DEMO_SEARCH_COUNTER = 0
+_DEMO_COMMENT_COUNTER = 0
 _COUNTER_LOCK = threading.Lock()
 
 DUMMY_VALID_USER = "demo_admin"
@@ -26,16 +28,30 @@ class DemoLoginRequest(BaseModel):
 
 
 def get_demo_target_invocation_count() -> int:
-    """Return the total number of times the protected demo target was actually executed."""
+    """Return the total number of times any protected demo target was actually executed."""
     with _COUNTER_LOCK:
         return _DEMO_INVOCATION_COUNTER
 
 
+def get_demo_search_invocation_count() -> int:
+    """Return the total number of times the protected demo search target was executed."""
+    with _COUNTER_LOCK:
+        return _DEMO_SEARCH_COUNTER
+
+
+def get_demo_comment_invocation_count() -> int:
+    """Return the total number of times the protected demo comment target was executed."""
+    with _COUNTER_LOCK:
+        return _DEMO_COMMENT_COUNTER
+
+
 def reset_demo_target_invocation_count() -> None:
-    """Reset the demo target invocation counter."""
-    global _DEMO_INVOCATION_COUNTER
+    """Reset all demo target invocation counters."""
+    global _DEMO_INVOCATION_COUNTER, _DEMO_SEARCH_COUNTER, _DEMO_COMMENT_COUNTER
     with _COUNTER_LOCK:
         _DEMO_INVOCATION_COUNTER = 0
+        _DEMO_SEARCH_COUNTER = 0
+        _DEMO_COMMENT_COUNTER = 0
 
 
 @router.post("/demo-login")
@@ -72,9 +88,69 @@ def demo_login(payload: DemoLoginRequest):
     )
 
 
+@router.get("/demo-search")
+def demo_search(query: str = ""):
+    """Controlled harmless disposable search target for SQL injection demo.
+
+    Does NOT connect to a database or execute arbitrary SQL.
+    Simply records that the target was reached.
+    """
+    global _DEMO_INVOCATION_COUNTER, _DEMO_SEARCH_COUNTER
+    with _COUNTER_LOCK:
+        _DEMO_INVOCATION_COUNTER += 1
+        _DEMO_SEARCH_COUNTER += 1
+        current_count = _DEMO_INVOCATION_COUNTER
+        search_count = _DEMO_SEARCH_COUNTER
+
+    return JSONResponse(
+        status_code=200,
+        content={
+            "status": "success",
+            "message": "Demo search executed safely",
+            "query": query,
+            "target_invocation_count": current_count,
+            "search_invocation_count": search_count,
+            "results": [
+                {"id": 101, "item": "Synthetic Demo Item Alpha"},
+                {"id": 102, "item": "Synthetic Demo Item Beta"},
+            ],
+        },
+    )
+
+
+@router.get("/demo-comment")
+def demo_comment(q: str = "", comment: str = ""):
+    """Controlled harmless disposable comment/input target for XSS demo.
+
+    Does NOT execute JavaScript or render attacker-controlled HTML.
+    Simply records that the target was reached.
+    """
+    global _DEMO_INVOCATION_COUNTER, _DEMO_COMMENT_COUNTER
+    input_val = q or comment
+    with _COUNTER_LOCK:
+        _DEMO_INVOCATION_COUNTER += 1
+        _DEMO_COMMENT_COUNTER += 1
+        current_count = _DEMO_INVOCATION_COUNTER
+        comment_count = _DEMO_COMMENT_COUNTER
+
+    return JSONResponse(
+        status_code=200,
+        content={
+            "status": "success",
+            "message": "Demo comment processed safely",
+            "input": input_val,
+            "target_invocation_count": current_count,
+            "comment_invocation_count": comment_count,
+        },
+    )
+
+
 @router.get("/demo-target-stats")
 def demo_target_stats():
-    """Return invocation statistics of the demo target."""
-    return {
-        "invocation_count": get_demo_target_invocation_count(),
-    }
+    """Return invocation statistics of the demo targets."""
+    with _COUNTER_LOCK:
+        return {
+            "invocation_count": _DEMO_INVOCATION_COUNTER,
+            "search_invocation_count": _DEMO_SEARCH_COUNTER,
+            "comment_invocation_count": _DEMO_COMMENT_COUNTER,
+        }
