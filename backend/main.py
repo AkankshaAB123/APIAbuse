@@ -19,6 +19,13 @@ app = FastAPI(
 # CORS
 # =========================================================
 
+import os
+
+# CORS origins — extend via ALLOWED_ORIGINS env var (comma-separated) for production
+_extra_origins = [
+    o.strip() for o in os.getenv("ALLOWED_ORIGINS", "").split(",") if o.strip()
+]
+
 app.add_middleware(
     CORSMiddleware,
 
@@ -27,7 +34,7 @@ app.add_middleware(
         "http://127.0.0.1:5173",
         "http://10.165.192.186:5173",
         "https://apiabuse.onrender.com",
-    ],
+    ] + _extra_origins,
 
     allow_credentials=False,
 

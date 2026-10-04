@@ -7,13 +7,21 @@ Run one heartbeat then exit::
 
     python -m agents.windows --once
 
-Start continuous monitoring::
+Start continuous monitoring in console::
 
     python -m agents.windows
 
 Send a high-risk demo event then exit::
 
     python -m agents.windows --demo
+
+Service Management::
+
+    python -m agents.windows --install-service
+    python -m agents.windows --start-service
+    python -m agents.windows --service-status
+    python -m agents.windows --stop-service
+    python -m agents.windows --uninstall-service
 
 Custom backend URL::
 
@@ -22,11 +30,20 @@ Custom backend URL::
 from __future__ import annotations
 
 import argparse
-import logging
 import sys
 
 from agents.windows.config import AgentConfig
+from agents.windows.logging_config import setup_agent_logging
 from agents.windows.monitor import WindowsEndpointMonitor
+from agents.windows.service import (
+    format_status_output,
+    get_service_status,
+    install_service,
+    run_service_worker,
+    start_service,
+    stop_service,
+    uninstall_service,
+)
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -38,7 +55,7 @@ def _build_parser() -> argparse.ArgumentParser:
         "--backend-url", "-b",
         default=None,
         metavar="URL",
-        help="Override backend URL (default: THREATGUARD_BACKEND_URL env or http://127.0.0.1:8000)",
+        help="Override backend URL (default: config.json or http://127.0.0.1:8000)",
     )
     p.add_argument(
         "--interval", "-i",
@@ -46,6 +63,12 @@ def _build_parser() -> argparse.ArgumentParser:
         default=None,
         metavar="SECONDS",
         help="Heartbeat interval in seconds (default: 30)",
+    )
+    p.add_argument(
+        "--config", "-c",
+        default=None,
+        metavar="PATH",
+        help="Path to custom config.json file",
     )
     p.add_argument(
         "--demo",
@@ -56,6 +79,37 @@ def _build_parser() -> argparse.ArgumentParser:
         "--once",
         action="store_true",
         help="Send one heartbeat then exit (useful for CI / health checks)",
+    )
+    p.add_argument(
+        "--status", "--service-status",
+        dest="status",
+        action="store_true",
+        help="Display current service and telemetry status",
+    )
+    p.add_argument(
+        "--install-service",
+        action="store_true",
+        help="Install agent as an automatic Windows Service",
+    )
+    p.add_argument(
+        "--uninstall-service",
+        action="store_true",
+        help="Uninstall the Windows Service",
+    )
+    p.add_argument(
+        "--start-service",
+        action="store_true",
+        help="Start the Windows Service",
+    )
+    p.add_argument(
+        "--stop-service",
+        action="store_true",
+        help="Stop the Windows Service",
+    )
+    p.add_argument(
+        "--service-run",
+        action="store_true",
+        help=argparse.SUPPRESS,  # Internal flag invoked by Service Control Manager
     )
     p.add_argument(
         "--no-toast",
@@ -71,22 +125,53 @@ def _build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Parse CLI args and run the agent.  Returns exit code."""
+    """Parse CLI args and run the agent or service management command."""
     parser = _build_parser()
     args = parser.parse_args(argv)
 
-    logging.basicConfig(
-        level=logging.DEBUG if args.verbose else logging.INFO,
-        format="%(asctime)s [%(levelname)s] %(name)s — %(message)s",
-        stream=sys.stdout,
-    )
+    # 1. Service execution mode (invoked by Service Control Manager)
+    if args.service_run:
+        return run_service_worker(args.config)
 
-    # Build config — CLI flags override env vars
-    config = AgentConfig.from_env()
+    # 2. Service management commands
+    if args.status:
+        status = get_service_status()
+        print(format_status_output(status))
+        return 0
+
+    if args.install_service:
+        print("[ThreatGuard] Installing Windows Service ...")
+        ok, msg = install_service(args.backend_url)
+        print(f"  {'[OK]' if ok else '[FAIL]'} {msg}")
+        return 0 if ok else 1
+
+    if args.uninstall_service:
+        print("[ThreatGuard] Uninstalling Windows Service ...")
+        ok, msg = uninstall_service()
+        print(f"  {'[OK]' if ok else '[FAIL]'} {msg}")
+        return 0 if ok else 1
+
+    if args.start_service:
+        print("[ThreatGuard] Starting Windows Service ...")
+        ok, msg = start_service()
+        print(f"  {'[OK]' if ok else '[FAIL]'} {msg}")
+        return 0 if ok else 1
+
+    if args.stop_service:
+        print("[ThreatGuard] Stopping Windows Service ...")
+        ok, msg = stop_service()
+        print(f"  {'[OK]' if ok else '[FAIL]'} {msg}")
+        return 0 if ok else 1
+
+    # 3. Interactive / CLI execution mode
+    config = AgentConfig.load(args.config)
     if args.backend_url:
         config.backend_url = args.backend_url.rstrip("/")
     if args.interval is not None:
         config.heartbeat_interval = args.interval
+
+    log_level = "DEBUG" if args.verbose else config.log_level
+    setup_agent_logging(log_file=config.log_file, log_level=log_level, console=True)
 
     monitor = WindowsEndpointMonitor(config, toast_enabled=not args.no_toast)
 
@@ -100,7 +185,7 @@ def main(argv: list[str] | None = None) -> int:
         resp = monitor.send_heartbeat_once()
         return 0 if resp.success else 1
 
-    # Continuous loop
+    # Continuous loop in console
     monitor.run_loop()
     return 0
 

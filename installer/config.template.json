@@ -1,0 +1,11 @@
+{
+  "server_url": "http://127.0.0.1:8000",
+  "backend_url": "http://127.0.0.1:8000",
+  "heartbeat_interval": 30,
+  "timeout": 8.0,
+  "queue_size": 50,
+  "auth_token": null,
+  "log_file": "C:\\ProgramData\\ThreatGuard\\logs\\agent.log",
+  "log_level": "INFO",
+  "device_id": null
+}

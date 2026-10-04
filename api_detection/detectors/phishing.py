@@ -1,5 +1,6 @@
 """Detect controlled phishing telemetry in the existing event pipeline."""
 
+import ipaddress
 from collections.abc import Sequence
 import re
 from typing import Any
@@ -13,6 +14,11 @@ from ..contracts import (
     Evidence,
     Severity,
 )
+
+try:
+    from ..services.phishing_url_classifier import get_phishing_url_classifier
+except Exception:  # pragma: no cover
+    get_phishing_url_classifier = None  # type: ignore[assignment]
 
 
 DETECTOR_ID = "phishing"
@@ -40,6 +46,24 @@ LINK_REFERENCE_TERMS = (
     "follow this link",
 )
 
+DETERMINISTIC_PHISHING_KEYWORDS = (
+    "login",
+    "signin",
+    "sign-in",
+    "verify",
+    "verification",
+    "credential",
+    "account-update",
+    "webscr",
+    "banking",
+    "ebayisapi",
+    "password",
+    "authenticate",
+    "secure-login",
+)
+
+DETERMINISTIC_SUSPICIOUS_TLDS = frozenset({"tk", "ml", "ga", "cf", "gq", "top", "xyz"})
+
 
 def _normalize_url_indicator(value: str) -> str:
     """Extract an http(s) URL from plain text or Markdown without fetching it."""
@@ -49,6 +73,88 @@ def _normalize_url_indicator(value: str) -> str:
 
     plain_match = re.search(r"https?://[^\s\]\[)]+", value)
     return plain_match.group(0) if plain_match else value.strip()
+
+
+def _extract_candidate_url(event: ApiSecurityEvent) -> str:
+    """Extract a candidate target URL from event body, query_params, or endpoint."""
+    body = event.request.body
+    if isinstance(body, dict):
+        for key in ("suspicious_url", "url", "phishing_url", "target_url", "link"):
+            val = body.get(key)
+            if val and isinstance(val, str):
+                return _normalize_url_indicator(val)
+
+    if isinstance(event.request.query_params, dict):
+        for key in ("url", "suspicious_url", "link", "target", "redirect", "dest"):
+            val = event.request.query_params.get(key)
+            if val and isinstance(val, str):
+                return _normalize_url_indicator(val)
+
+    ep = str(event.request.endpoint or "").strip()
+    if ep.startswith(("http://", "https://")) or ("." in ep and "/" in ep and not ep.startswith("/")):
+        return _normalize_url_indicator(ep)
+
+    return ""
+
+
+def _check_deterministic_url_heuristics(url: str) -> list[Evidence]:
+    """Evaluate deterministic string-only phishing rules on a candidate URL."""
+    evidence: list[Evidence] = []
+    if not url:
+        return evidence
+
+    norm_url = url if "://" in url else f"http://{url}"
+    try:
+        parsed = urlparse(norm_url)
+        host = (parsed.hostname or "").lower()
+        path = parsed.path.lower()
+        query = parsed.query.lower()
+    except Exception:
+        return evidence
+
+    # 1. Simulated login marker
+    if host.endswith(".example.test") and any(m in f"{host}{path}" for m in ("login", "verify", "secure", "signin")):
+        evidence.append(
+            Evidence(
+                code="PHISHING_SIMULATED_LOGIN_URL",
+                message="Target URL points to a reserved .example.test destination with login or verification marker.",
+            )
+        )
+
+    # 2. Phishing keyword in path / query
+    kw_hits = [kw for kw in DETERMINISTIC_PHISHING_KEYWORDS if kw in f"{path}?{query}"]
+    if kw_hits:
+        evidence.append(
+            Evidence(
+                code="PHISHING_HEURISTIC_LOGIN_KEYWORD",
+                message=f"URL path or query contains sensitive credential/authentication keyword: {', '.join(kw_hits[:3])}.",
+            )
+        )
+
+    # 3. Suspicious TLD
+    tld = host.rsplit(".", 1)[-1] if "." in host else ""
+    if tld in DETERMINISTIC_SUSPICIOUS_TLDS:
+        evidence.append(
+            Evidence(
+                code="PHISHING_HEURISTIC_SUSPICIOUS_TLD",
+                message=f"URL uses high-abuse top-level domain '.{tld}'.",
+            )
+        )
+
+    # 4. Raw IP host with non-root path
+    try:
+        ipaddress.ip_address(host.strip("[]"))
+        if len(path) > 1:
+            evidence.append(
+                Evidence(
+                    code="PHISHING_HEURISTIC_IP_HOST",
+                    message=f"URL uses raw IP address host '{host}' with credential path.",
+                )
+            )
+    except ValueError:
+        pass
+
+    return evidence
 
 
 def _email_indicators(body: dict[str, Any]) -> tuple[list[Evidence], dict[str, Any]]:
@@ -135,17 +241,20 @@ def detect_phishing(
     event: ApiSecurityEvent,
     recent_events: Sequence[ApiSecurityEvent] = (),
 ) -> DetectorResult:
-    """Flag the controlled login lab and live synthetic phishing emails."""
+    """Flag controlled phishing lab, synthetic emails, and evaluate URL ML signal under gated policy."""
     del recent_events
 
     body: Any = event.request.body
+
+    # -------------------------------------------------------------------------
+    # 1. Controlled Local Phishing Login Lab
+    # -------------------------------------------------------------------------
     is_body_match = (
         isinstance(body, dict)
         and body.get("credential_submission_observed") is True
         and body.get("credential_capture_observed") is True
         and body.get("phishing_url") == "/lab/phishing/login"
     )
-
     if event.request.endpoint == "/lab/phishing/login" and is_body_match:
         return DetectorResult(
             event_id=event.event_id,
@@ -157,10 +266,7 @@ def detect_phishing(
             evidence=(
                 Evidence(
                     code="CONTROLLED_CREDENTIAL_CAPTURE",
-                    message=(
-                        "Dummy credentials were submitted to the controlled "
-                        "local phishing login page."
-                    ),
+                    message="Dummy credentials were submitted to the controlled local phishing login page.",
                 ),
             ),
             source="api_detector",
@@ -168,10 +274,17 @@ def detect_phishing(
                 "rule_version": PHISHING_RULE_VERSION,
                 "window_seconds": 0,
                 "domain": DetectorDomain.ENDPOINT.value,
+                "model_version": "v3",
+                "ml_contributed_to_risk": False,
+                "deterministic_rules_fired": True,
+                "gated_decision": "DETERMINISTIC_LAB",
             },
             domain=DetectorDomain.ENDPOINT,
         )
 
+    # -------------------------------------------------------------------------
+    # 2. Live Synthetic Phishing Email Endpoint
+    # -------------------------------------------------------------------------
     is_synthetic_email = (
         event.request.endpoint == EMAIL_PHISHING_ENDPOINT
         and isinstance(body, dict)
@@ -179,9 +292,19 @@ def detect_phishing(
     )
     if is_synthetic_email:
         evidence, indicators = _email_indicators(body)
-        # Require multiple independent signals. The URL remains a string-only
-        # indicator; it is never contacted or fetched by the detector.
-        if (
+        raw_suspicious_url = str(body.get("suspicious_url", "")).strip()
+        candidate_url = _normalize_url_indicator(raw_suspicious_url)
+
+        # Query v3 Phishing URL Classifier
+        ml_prob: float | None = None
+        if candidate_url and get_phishing_url_classifier is not None:
+            try:
+                ml_pred = get_phishing_url_classifier().predict(candidate_url)
+                ml_prob = ml_pred.get("probability")
+            except Exception:
+                ml_prob = None
+
+        deterministic_rules_fired = (
             indicators["simulated_login_url"]
             and bool(indicators["social_engineering_terms"])
             and sum(
@@ -190,26 +313,236 @@ def detect_phishing(
                     indicators["url_embedded"],
                     indicators["suspicious_sender"],
                 )
-            ) >= 2
-        ):
+            )
+            >= 2
+        )
+
+        if deterministic_rules_fired:
+            ev_list = list(evidence)
+            ml_contributed = False
+            confidence = 0.92
+
+            if ml_prob is not None and ml_prob >= 0.95:
+                ev_list.append(
+                    Evidence(
+                        code="PHISHING_ML_CONFIRMED",
+                        message=f"v3 Random Forest classifier confirmed phishing with probability {ml_prob:.4f} (>= 0.95 threshold).",
+                    )
+                )
+                ml_contributed = True
+
             return DetectorResult(
                 event_id=event.event_id,
                 detector_id=DETECTOR_ID,
                 detected=True,
                 attack_type=AttackType.PHISHING,
-                confidence=0.92,
+                confidence=confidence,
                 severity=Severity.HIGH,
-                evidence=tuple(evidence),
+                evidence=tuple(ev_list),
                 source="api_detector",
                 metadata={
                     "rule_version": PHISHING_RULE_VERSION,
                     "window_seconds": 0,
                     "domain": DetectorDomain.ENDPOINT.value,
                     "indicators": indicators,
+                    "model_version": "v3",
+                    "phishing_ml_probability": ml_prob,
+                    "ml_contributed_to_risk": ml_contributed,
+                    "deterministic_rules_fired": True,
+                    "gated_decision": "CONFIRMED_GATED_PHISHING" if ml_contributed else "DETERMINISTIC_ONLY_PHISHING",
+                    "url": candidate_url,
                 },
                 domain=DetectorDomain.ENDPOINT,
             )
 
+        # Deterministic email rules did not fire: evaluate ML score under safety rule
+        if ml_prob is not None and ml_prob >= 0.95:
+            # CRITICAL SAFETY RULE: High ML alone must NOT directly declare detection or URL_BLOCK
+            return DetectorResult(
+                event_id=event.event_id,
+                detector_id=DETECTOR_ID,
+                detected=False,
+                attack_type=None,
+                confidence=0.0,
+                severity=Severity.MEDIUM,
+                evidence=(
+                    Evidence(
+                        code="PHISHING_ML_AUXILIARY_SUSPICION",
+                        message=f"v3 Random Forest classifier flagged high probability {ml_prob:.4f} without corroborating deterministic rule; flagged for auxiliary monitoring.",
+                    ),
+                ),
+                source="api_detector",
+                metadata={
+                    "rule_version": PHISHING_RULE_VERSION,
+                    "window_seconds": 0,
+                    "domain": DetectorDomain.ENDPOINT.value,
+                    "indicators": indicators,
+                    "model_version": "v3",
+                    "phishing_ml_probability": ml_prob,
+                    "ml_contributed_to_risk": True,
+                    "deterministic_rules_fired": False,
+                    "gated_decision": "SUSPICIOUS_ML_AUXILIARY_ONLY",
+                    "auxiliary_suspicion": True,
+                    "url": candidate_url,
+                },
+                domain=DetectorDomain.ENDPOINT,
+            )
+
+        return DetectorResult(
+            event_id=event.event_id,
+            detector_id=DETECTOR_ID,
+            detected=False,
+            attack_type=None,
+            confidence=0.0,
+            severity=Severity.LOW,
+            evidence=(),
+            source="api_detector",
+            metadata={
+                "rule_version": PHISHING_RULE_VERSION,
+                "window_seconds": 0,
+                "domain": DetectorDomain.ENDPOINT.value,
+                "indicators": indicators,
+                "model_version": "v3",
+                "phishing_ml_probability": ml_prob,
+                "ml_contributed_to_risk": False,
+                "deterministic_rules_fired": False,
+                "gated_decision": "BENIGN_OR_CLEAN",
+                "url": candidate_url,
+            },
+            domain=DetectorDomain.ENDPOINT,
+        )
+
+    # -------------------------------------------------------------------------
+    # 3. General Target URL / Browser Navigation / Security Check
+    # -------------------------------------------------------------------------
+    candidate_url = _extract_candidate_url(event)
+    if candidate_url:
+        heuristic_evidence = _check_deterministic_url_heuristics(candidate_url)
+        ml_prob = None
+        if get_phishing_url_classifier is not None:
+            try:
+                ml_pred = get_phishing_url_classifier().predict(candidate_url)
+                ml_prob = ml_pred.get("probability")
+            except Exception:
+                ml_prob = None
+
+        # Gated Rule 1: Deterministic heuristic hit + ML probability >= 0.95
+        if heuristic_evidence and ml_prob is not None and ml_prob >= 0.95:
+            ev_list = list(heuristic_evidence)
+            ev_list.append(
+                Evidence(
+                    code="PHISHING_ML_CONFIRMED",
+                    message=f"v3 Random Forest classifier confirmed phishing with probability {ml_prob:.4f} (>= 0.95 threshold).",
+                )
+            )
+            return DetectorResult(
+                event_id=event.event_id,
+                detector_id=DETECTOR_ID,
+                detected=True,
+                attack_type=AttackType.PHISHING,
+                confidence=round(max(0.92, ml_prob), 2),
+                severity=Severity.HIGH,
+                evidence=tuple(ev_list),
+                source="api_detector",
+                metadata={
+                    "rule_version": PHISHING_RULE_VERSION,
+                    "window_seconds": 0,
+                    "domain": DetectorDomain.ENDPOINT.value,
+                    "model_version": "v3",
+                    "phishing_ml_probability": ml_prob,
+                    "ml_contributed_to_risk": True,
+                    "deterministic_rules_fired": True,
+                    "gated_decision": "CONFIRMED_GATED_PHISHING",
+                    "url": candidate_url,
+                },
+                domain=DetectorDomain.ENDPOINT,
+            )
+
+        # Gated Rule 2: Strong deterministic heuristic hit (e.g. simulated login destination or multiple indicators)
+        simulated_login_hit = any(e.code == "PHISHING_SIMULATED_LOGIN_URL" for e in heuristic_evidence)
+        if simulated_login_hit or len(heuristic_evidence) >= 2:
+            return DetectorResult(
+                event_id=event.event_id,
+                detector_id=DETECTOR_ID,
+                detected=True,
+                attack_type=AttackType.PHISHING,
+                confidence=0.90,
+                severity=Severity.HIGH,
+                evidence=tuple(heuristic_evidence),
+                source="api_detector",
+                metadata={
+                    "rule_version": PHISHING_RULE_VERSION,
+                    "window_seconds": 0,
+                    "domain": DetectorDomain.ENDPOINT.value,
+                    "model_version": "v3",
+                    "phishing_ml_probability": ml_prob,
+                    "ml_contributed_to_risk": False,
+                    "deterministic_rules_fired": True,
+                    "gated_decision": "DETERMINISTIC_ONLY_PHISHING",
+                    "url": candidate_url,
+                },
+                domain=DetectorDomain.ENDPOINT,
+            )
+
+        # Gated Rule 3: High ML score alone (>= 0.95) without deterministic rule
+        # CRITICAL SAFETY RULE: High ML alone must NOT directly cause URL_BLOCK
+        if ml_prob is not None and ml_prob >= 0.95:
+            return DetectorResult(
+                event_id=event.event_id,
+                detector_id=DETECTOR_ID,
+                detected=False,
+                attack_type=None,
+                confidence=0.0,
+                severity=Severity.MEDIUM,
+                evidence=(
+                    Evidence(
+                        code="PHISHING_ML_AUXILIARY_SUSPICION",
+                        message=f"v3 Random Forest classifier flagged high probability {ml_prob:.4f} without corroborating deterministic rule; flagged for auxiliary monitoring.",
+                    ),
+                ),
+                source="api_detector",
+                metadata={
+                    "rule_version": PHISHING_RULE_VERSION,
+                    "window_seconds": 0,
+                    "domain": DetectorDomain.ENDPOINT.value,
+                    "model_version": "v3",
+                    "phishing_ml_probability": ml_prob,
+                    "ml_contributed_to_risk": True,
+                    "deterministic_rules_fired": False,
+                    "gated_decision": "SUSPICIOUS_ML_AUXILIARY_ONLY",
+                    "auxiliary_suspicion": True,
+                    "url": candidate_url,
+                },
+                domain=DetectorDomain.ENDPOINT,
+            )
+
+        # Clean / Benign URL
+        return DetectorResult(
+            event_id=event.event_id,
+            detector_id=DETECTOR_ID,
+            detected=False,
+            attack_type=None,
+            confidence=0.0,
+            severity=Severity.LOW,
+            evidence=(),
+            source="api_detector",
+            metadata={
+                "rule_version": PHISHING_RULE_VERSION,
+                "window_seconds": 0,
+                "domain": DetectorDomain.ENDPOINT.value,
+                "model_version": "v3",
+                "phishing_ml_probability": ml_prob,
+                "ml_contributed_to_risk": False,
+                "deterministic_rules_fired": False,
+                "gated_decision": "BENIGN_OR_CLEAN",
+                "url": candidate_url,
+            },
+            domain=DetectorDomain.ENDPOINT,
+        )
+
+    # -------------------------------------------------------------------------
+    # 4. Default Clean Result (No Target URL and No Lab Match)
+    # -------------------------------------------------------------------------
     return DetectorResult(
         event_id=event.event_id,
         detector_id=DETECTOR_ID,
@@ -223,6 +556,11 @@ def detect_phishing(
             "rule_version": PHISHING_RULE_VERSION,
             "window_seconds": 0,
             "domain": DetectorDomain.ENDPOINT.value,
+            "model_version": "v3",
+            "ml_contributed_to_risk": False,
+            "deterministic_rules_fired": False,
+            "gated_decision": "NO_URL_PRESENT",
         },
         domain=DetectorDomain.ENDPOINT,
     )
+

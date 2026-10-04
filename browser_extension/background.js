@@ -17,9 +17,6 @@ chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
   // Ignore local extensions and the backend itself
   if (urlObj.protocol === 'chrome-extension:' || urlObj.hostname === 'localhost') return;
   
-  // If there are no query parameters, it's less likely to be a reflected XSS attack in a simple GET
-  if (urlObj.search === '') return;
-  
   if (scannedUrls.has(details.url)) return;
   scannedUrls.add(details.url);
   
@@ -34,7 +31,7 @@ chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
     event_id: "EXT-NAV-" + generateUUID().substring(0, 8),
     timestamp: new Date().toISOString(),
     network: {
-      source_ip: "127.0.0.1",
+source_ip: "192.168.43.46",
       user_agent: navigator.userAgent
     },
     identity: {
@@ -43,10 +40,10 @@ chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
     },
     request: {
       method: "GET",
-      endpoint: urlObj.pathname,
+      endpoint: details.url,
       query_params: queryParams,
       headers: {},
-      body: null
+      body: { url: details.url }
     },
     response: {
       status_code: 200,
@@ -59,8 +56,7 @@ chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
   };
 
   try {
-    const response = await fetch("http://localhost:8000/events", {
-      method: "POST",
+const response = await fetch("http://192.168.43.46:8000/events", {      method: "POST",
       headers: {
         "Content-Type": "application/json"
       },
@@ -70,22 +66,28 @@ chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
     if (response.ok) {
       const result = await response.json();
       
-      // Check if XSS was detected
+      // Check detected attack types and mitigation action
       const detectors = result.detector_results || [];
       const xssDetected = detectors.some(d => d.detected && d.attack_type === "XSS");
       const malUrlDetected = detectors.some(d => d.detected && d.attack_type === "MALICIOUS_URL");
+      const phishingDetected = detectors.some(d => d.detected && d.attack_type === "PHISHING");
+      const isUrlBlock = result.mitigation_action === "URL_BLOCK";
       
-      if (xssDetected || malUrlDetected) {
+      if (xssDetected || malUrlDetected || phishingDetected || isUrlBlock) {
+        const attackLabel = (phishingDetected || isUrlBlock)
+          ? "Phishing"
+          : (xssDetected ? "XSS" : "Malicious URL");
+
         chrome.notifications.create({
           type: "basic",
           iconUrl: "icon.png",
           title: "ThreatGuard Alert!",
-          message: `Blocked a potential ${xssDetected ? "XSS" : "Malicious URL"} attack on ${urlObj.hostname}!`
+          message: `Blocked a potential ${attackLabel} attack on ${urlObj.hostname}!`
         });
         
         // Block the page by redirecting to blocked.html
         chrome.tabs.update(details.tabId, {
-          url: chrome.runtime.getURL(`blocked.html?type=${xssDetected ? "XSS" : "Malicious URL"}&url=${encodeURIComponent(details.url)}`)
+          url: chrome.runtime.getURL(`blocked.html?type=${attackLabel}&url=${encodeURIComponent(details.url)}`)
         });
         
         // Save to storage for the popup
@@ -93,7 +95,7 @@ chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
           const threats = data.threats;
           threats.unshift({
             url: details.url,
-            type: xssDetected ? "XSS" : "Malicious URL",
+            type: attackLabel,
             time: new Date().toLocaleTimeString()
           });
           chrome.storage.local.set({ threats: threats.slice(0, 10) });

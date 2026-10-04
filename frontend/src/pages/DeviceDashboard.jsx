@@ -483,7 +483,7 @@ export default function DeviceDashboard({ user }) {
                 Close
               </button>
               <a
-                href="http://localhost:8000/static/threatguard_extension.zip"
+                href={`${import.meta.env.VITE_API_URL || "http://localhost:8000"}/static/threatguard_extension.zip`}
                 download
                 onClick={() => setTimeout(() => setShowExtensionModal(false), 1000)}
                 style={{

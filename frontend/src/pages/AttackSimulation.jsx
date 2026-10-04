@@ -1247,7 +1247,8 @@ function AttackSimulation() {
 
           setXssHtml(""); // Clear previous sandbox
 
-          let url = `http://localhost:8000${customXssEndpoint}`;
+          const _xssBase = import.meta.env.VITE_API_URL || "http://localhost:8000";
+          let url = `${_xssBase}${customXssEndpoint}`;
           let fetchOptions = {
              method: customXssMethod,
              headers: {

@@ -111,6 +111,31 @@ class RiskEngine:
 
             detector_scores.append(score)
 
+        # -------------------------------------------------
+        # Auxiliary ML suspicion (Phase 2C Gated Integration)
+        # -------------------------------------------------
+        auxiliary_ml_suspicion = False
+        for result in detector_results:
+            meta = getattr(result, "metadata", None)
+            details = {}
+            if isinstance(meta, dict):
+                details = meta.get("details", meta)
+            elif hasattr(meta, "details"):
+                details = getattr(meta, "details", {})
+
+            if (
+                details.get("gated_decision") == "SUSPICIOUS_ML_AUXILIARY_ONLY"
+                or details.get("auxiliary_suspicion") is True
+            ):
+                auxiliary_ml_suspicion = True
+                break
+
+        if auxiliary_ml_suspicion and not detected_results:
+            detector_scores.append(45.0)
+            reasons.append(
+                "URL flagged by auxiliary ML model with elevated risk score; awaiting corroboration."
+            )
+
         detector_score = 0.0
 
         if detector_scores:
@@ -276,6 +301,7 @@ class RiskEngine:
 
         threat_detected = (
             bool(detected_results)
+            or auxiliary_ml_suspicion
             or (
                 ml_result is not None
                 and hasattr(ml_result, "detection")
