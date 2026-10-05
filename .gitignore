@@ -1,6 +1,60 @@
-ml/datasets/
-ml/models/*.pkl
-ml/models/*.joblib
-__pycache__/
-.venv/
+# Environment variables
 .env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# RAG generated files
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# Node
+node_modules/
+
+# Build output
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local Python virtual environment
+.venv310/
+
+# ML datasets and local test artifacts
+ml/datasets/
+ml_test_features.json
+
+# Temporary deployment test environment
+.deploy_test/
+
+
+# Large ML model artifacts - v1 (362 MB) and v2 NOT needed for production
+# v3 (40 MB) IS needed and is tracked
+api_detection/models/phishing_url_classifier.pkl
+api_detection/models/phishing_url_classifier_v2.pkl
+
+# Android build cache and machine-specific files
+android/.gradle/
+android/local.properties
+android/app/build/
+
+# Scratch / analysis scripts
+scratch/
+# Local training datasets - not needed in git/production
+ml/phishing/*.csv
+ml/phishing/*.txt
+*.zip
+api_detection/models/phishing_url_model_meta.json

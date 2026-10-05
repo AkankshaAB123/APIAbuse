@@ -1,0 +1,44 @@
+services:
+  # ─────────────────────────────────────────────────────────
+  # ThreatGuard Backend (FastAPI)
+  # ─────────────────────────────────────────────────────────
+  - type: web
+    name: threatguard-backend
+    runtime: python
+    plan: standard
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn backend.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: MONGODB_URI
+        sync: false
+      - key: MONGODB_DATABASE
+        value: api_threat_detection
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: JWT_SECRET_KEY
+        sync: false
+      - key: JWT_ALGORITHM
+        value: HS256
+      - key: JWT_ACCESS_TOKEN_EXPIRE_MINUTES
+        value: "480"
+      - key: ALLOWED_ORIGINS
+        sync: false
+      - key: PYTHONPATH
+        value: "."
+
+  # ─────────────────────────────────────────────────────────
+  # ThreatGuard Gateway (FastAPI proxy)
+  # ─────────────────────────────────────────────────────────
+  - type: web
+    name: threatguard-gateway
+    runtime: python
+    plan: starter
+    buildCommand: pip install fastapi uvicorn pydantic
+    startCommand: uvicorn gateway.proxy:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: BACKEND_EVENTS_URL
+        sync: false
+      - key: TARGET_BASE_URL
+        sync: false
+      - key: PYTHONPATH
+        value: "."

@@ -1,6 +1,9 @@
 function RiskBadge({ score, severity }) {
+  const displayScore = typeof score === "object" ? JSON.stringify(score) : score;
+  const displaySeverity = typeof severity === "object" ? JSON.stringify(severity) : severity;
+
   const getRiskClass = () => {
-    switch (severity) {
+    switch (displaySeverity) {
       case "CRITICAL":
         return "risk-critical";
 
@@ -20,10 +23,10 @@ function RiskBadge({ score, severity }) {
 
   return (
     <div className={`risk-badge ${getRiskClass()}`}>
-      <span className="risk-score">{score}</span>
+      <span className="risk-score">{displayScore ?? "N/A"}</span>
 
       <span className="risk-severity">
-        {severity}
+        {displaySeverity ?? "N/A"}
       </span>
     </div>
   );

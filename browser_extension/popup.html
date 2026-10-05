@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { width: 300px; font-family: sans-serif; padding: 10px; }
+    h3 { color: #d32f2f; margin-top: 0; }
+    .threat-item { border-bottom: 1px solid #ccc; padding: 5px 0; font-size: 12px; }
+    .threat-type { font-weight: bold; color: #d32f2f; }
+    .threat-url { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #555; }
+    .empty { color: #888; font-style: italic; }
+  </style>
+</head>
+<body>
+  <h3>ThreatGuard Activity</h3>
+  <div id="threat-list">
+    <div class="empty">No recent threats detected.</div>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>
