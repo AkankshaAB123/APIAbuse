@@ -24,7 +24,8 @@ CLASSIFICATION = {
 }
 
 PHISHING_PATH = "/lab/phishing/login"
-PHISHING_URL = "http://127.0.0.1:8000/lab/phishing/login"
+_SELF_PORT = __import__("os").getenv("PORT", "8000")
+PHISHING_URL = f"http://127.0.0.1:{_SELF_PORT}/lab/phishing/login"
 PHISHING_EMAIL_PATH = "/lab/phishing/email"
 DUMMY_USERNAME = "victim_demo"
 DUMMY_PASSWORD = "DemoPassword123"
