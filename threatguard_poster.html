@@ -1,0 +1,1080 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>ThreatGuard Poster</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
+    }
+    body {
+      width: 1920px;
+      height: 1280px;
+      background: #eef2f6;
+      color: #1e293b;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Top Header */
+    .top-banner {
+      background: linear-gradient(90deg, #072a5a 0%, #0c3d7a 50%, #072a5a 100%);
+      color: white;
+      padding: 14px 36px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 3.5px solid #f59e0b;
+    }
+    .top-banner h1 {
+      font-size: 27px;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      text-align: center;
+      flex-grow: 1;
+    }
+    .team-badge {
+      font-size: 21px;
+      font-weight: 800;
+      background: #1e40af;
+      padding: 5px 16px;
+      border-radius: 6px;
+      border: 1.5px solid #60a5fa;
+      letter-spacing: 1px;
+    }
+
+    /* Institution Header Bar */
+    .meta-bar {
+      background: #ffffff;
+      padding: 10px 48px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+      position: relative;
+      z-index: 10;
+    }
+    .meta-logo {
+      height: 84px;
+      object-fit: contain;
+    }
+    .meta-text {
+      text-align: center;
+      flex: 1;
+      padding: 0 20px;
+    }
+    .meta-authors {
+      font-size: 16px;
+      font-weight: 700;
+      color: #0f172a;
+      margin-bottom: 3px;
+    }
+    .meta-guide {
+      font-size: 15px;
+      font-weight: 600;
+      color: #1e3a8a;
+      margin-bottom: 2px;
+    }
+    .meta-dept {
+      font-size: 15px;
+      font-weight: 700;
+      color: #0284c7;
+      margin-bottom: 1px;
+    }
+    .meta-college {
+      font-size: 16px;
+      font-weight: 800;
+      color: #b91c1c;
+    }
+
+    /* Main Poster Body Grid */
+    .poster-grid {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1.05fr 1.15fr 1.35fr;
+      gap: 16px;
+      padding: 16px 20px;
+    }
+
+    .column {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* Section Card */
+    .section-card {
+      background: #ffffff;
+      border-radius: 10px;
+      border: 1.5px solid #cbd5e1;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.03);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .section-header {
+      background: linear-gradient(90deg, #02529c 0%, #0c66be 100%);
+      color: #ffffff;
+      font-size: 17px;
+      font-weight: 700;
+      padding: 8px 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      letter-spacing: 0.3px;
+    }
+    .section-content {
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      flex: 1;
+    }
+
+    /* Section 1 Styles */
+    .split-cards {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .problem-box {
+      background: #fff5f5;
+      border: 1.5px solid #fecaca;
+      border-radius: 8px;
+      padding: 10px;
+    }
+    .problem-box h4 {
+      color: #dc2626;
+      font-size: 15px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      text-align: center;
+    }
+    .solution-box {
+      background: #f0fdf4;
+      border: 1.5px solid #bbf7d0;
+      border-radius: 8px;
+      padding: 10px;
+    }
+    .solution-box h4 {
+      color: #16a34a;
+      font-size: 15px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      text-align: center;
+    }
+    .list-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: #334155;
+    }
+    .list-icon {
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+
+    /* Section 2 Objectives */
+    .obj-row {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 8px;
+    }
+    .obj-badge {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: 6px;
+    }
+    .obj-circle {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 20px;
+      box-shadow: 0 3px 6px rgba(0,0,0,0.15);
+    }
+    .obj-badge p {
+      font-size: 11px;
+      font-weight: 700;
+      color: #1e293b;
+      line-height: 1.25;
+    }
+
+    /* Section 3 Architecture */
+    .arch-container {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      font-size: 12px;
+    }
+    .arch-block {
+      border: 1px solid #94a3b8;
+      border-radius: 8px;
+      background: #f8fafc;
+      padding: 8px;
+    }
+    .arch-title {
+      font-weight: 700;
+      font-size: 12px;
+      color: #0369a1;
+      text-align: center;
+      margin-bottom: 6px;
+    }
+    .client-chips {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+    }
+    .chip {
+      background: white;
+      border: 1.5px solid #cbd5e1;
+      border-radius: 6px;
+      padding: 6px 4px;
+      text-align: center;
+      font-size: 11px;
+      font-weight: 700;
+      color: #334155;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+    }
+    .chip span {
+      font-size: 9px;
+      font-weight: 500;
+      color: #64748b;
+    }
+    .arrow-down {
+      text-align: center;
+      color: #0284c7;
+      font-size: 14px;
+      font-weight: bold;
+      margin: -3px 0;
+    }
+    .backend-modules {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 6px;
+    }
+    .mod-box {
+      background: white;
+      border: 1.5px solid #38bdf8;
+      border-radius: 6px;
+      padding: 6px 4px;
+      text-align: center;
+      font-size: 10.5px;
+      font-weight: 700;
+      color: #0f172a;
+    }
+    .mod-box span {
+      display: block;
+      font-size: 9px;
+      font-weight: 500;
+      color: #0284c7;
+      margin-top: 2px;
+    }
+    .bottom-arch {
+      display: grid;
+      grid-template-columns: 1fr auto 1.1fr;
+      gap: 8px;
+      align-items: center;
+    }
+    .store-box {
+      background: #eff6ff;
+      border: 1.5px solid #93c5fd;
+      border-radius: 6px;
+      padding: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      text-align: center;
+      color: #1e40af;
+    }
+
+    /* Section 4 Metrics & Charts */
+    .metrics-top {
+      display: grid;
+      grid-template-columns: 1.3fr 1fr;
+      gap: 12px;
+      align-items: center;
+    }
+    .stat-badge-box {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .stat-badge {
+      background: #f8fafc;
+      border: 1.5px solid #cbd5e1;
+      border-radius: 8px;
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+    }
+    .stat-val {
+      font-size: 26px;
+      font-weight: 800;
+    }
+    .stat-lbl {
+      font-size: 12px;
+      font-weight: 600;
+      color: #475569;
+      line-height: 1.25;
+    }
+
+    .metrics-bottom {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 4px;
+    }
+    .chart-card {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 8px;
+    }
+    .chart-card h5 {
+      font-size: 12px;
+      font-weight: 700;
+      color: #1e293b;
+      margin-bottom: 6px;
+      text-align: center;
+    }
+
+    /* Section 5 Live Pen Test & Verification */
+    .harness-card {
+      background: #0f172a;
+      border-radius: 8px;
+      overflow: hidden;
+      color: white;
+    }
+    .harness-head {
+      background: #1e3a8a;
+      padding: 6px 12px;
+      font-size: 12px;
+      font-weight: 700;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #3b82f6;
+    }
+    .harness-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11px;
+    }
+    .harness-table th {
+      background: #1e293b;
+      color: #94a3b8;
+      padding: 5px 8px;
+      text-align: left;
+      font-weight: 600;
+      border-bottom: 1px solid #334155;
+    }
+    .harness-table td {
+      padding: 6px 8px;
+      border-bottom: 1px solid #1e293b;
+    }
+    .badge-leak {
+      background: #450a0a;
+      color: #f87171;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: 700;
+      font-size: 10px;
+      border: 1px solid #7f1d1d;
+    }
+    .badge-mitigate {
+      background: #064e3b;
+      color: #34d399;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: 700;
+      font-size: 10px;
+      border: 1px solid #047857;
+    }
+    .badge-warn {
+      background: #78350f;
+      color: #fbbf24;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: 700;
+      font-size: 10px;
+      border: 1px solid #b45309;
+    }
+
+    /* Telemetry Table */
+    .telemetry-card {
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .telemetry-head {
+      background: #0369a1;
+      color: white;
+      padding: 6px 10px;
+      font-size: 12px;
+      font-weight: 700;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .tel-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11px;
+    }
+    .tel-table th {
+      background: #f1f5f9;
+      color: #475569;
+      padding: 5px 8px;
+      text-align: left;
+      font-weight: 700;
+      border-bottom: 1.5px solid #cbd5e1;
+    }
+    .tel-table td {
+      padding: 5px 8px;
+      border-bottom: 1px solid #e2e8f0;
+      font-weight: 600;
+    }
+    .sev-crit {
+      color: #dc2626;
+      font-weight: 800;
+    }
+    .sev-high {
+      color: #ea580c;
+      font-weight: 800;
+    }
+    .act-block {
+      background: #fee2e2;
+      color: #991b1b;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 800;
+      display: inline-block;
+    }
+    .act-rate {
+      background: #fef3c7;
+      color: #92400e;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 800;
+      display: inline-block;
+    }
+
+    /* SOC Dashboard Mockup */
+    .soc-widget {
+      background: #0f172a;
+      border-radius: 8px;
+      padding: 10px;
+      color: white;
+      border: 1px solid #334155;
+    }
+    .soc-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid #1e293b;
+    }
+    .soc-stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+    .soc-stat-box {
+      background: #1e293b;
+      border-radius: 6px;
+      padding: 6px 8px;
+      text-align: center;
+      border: 1px solid #334155;
+    }
+    .soc-stat-val {
+      font-size: 18px;
+      font-weight: 800;
+    }
+    .soc-stat-lbl {
+      font-size: 9.5px;
+      color: #94a3b8;
+      text-transform: uppercase;
+      font-weight: 700;
+    }
+    .soc-charts-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      align-items: center;
+    }
+
+    /* Conclusion */
+    .conclusion-row {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 4px;
+    }
+    .check-circle {
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      background: #22c55e;
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 30px;
+      flex-shrink: 0;
+      box-shadow: 0 4px 10px rgba(34, 197, 94, 0.4);
+    }
+    .conclusion-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-size: 12.5px;
+      font-weight: 600;
+      color: #1e293b;
+    }
+    .conclusion-list li {
+      list-style-type: disc;
+      margin-left: 18px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Header Banner -->
+  <div class="top-banner">
+    <h1>THREATGUARD: A UNIFIED TRI-DOMAIN (API, NETWORK & ENDPOINT) INTRUSION DETECTION AND PREVENTION SYSTEM WITH AI</h1>
+    <div class="team-badge">TEAM A3</div>
+  </div>
+
+  <!-- Institution Meta Bar with Official Logos -->
+  <div class="meta-bar">
+    <img src="data:image/png;base64,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" class="meta-logo" alt="NIE Crest">
+    <div class="meta-text">
+      <div class="meta-authors">Aditi Maindola (4NI23CS008) &bull; Akanksha (4NI23CS016) &bull; Diya Jindal (4NI23CS057) &bull; Jenessa Valder (4NI23CS071)</div>
+      <div class="meta-guide">Guide: Mrs. Mahe Mubeen Akhtar D (Assistant Professor)</div>
+      <div class="meta-dept">Department of Computer Science and Engineering</div>
+      <div class="meta-college">The National Institute of Engineering, Mysuru - 570008</div>
+    </div>
+    <img src="data:image/png;base64,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" class="meta-logo" alt="NIE CSE Shield">
+  </div>
+
+  <!-- Main Poster 3-Column Grid -->
+  <div class="poster-grid">
+
+    <!-- ==================== COLUMN 1 ==================== -->
+    <div class="column">
+
+      <!-- 1. Problem & Solution -->
+      <div class="section-card">
+        <div class="section-header">
+          <span>1. Problem &amp; Solution</span>
+        </div>
+        <div class="section-content">
+          <div class="split-cards">
+            <div class="problem-box">
+              <h4>Challenges</h4>
+              <div class="list-item"><span class="list-icon">⚠️</span><span>Traditional IDS only logs attacks</span></div>
+              <div class="list-item"><span class="list-icon">🔗</span><span>OWASP threats (SQLi, BOLA, XSS, SSRF)</span></div>
+              <div class="list-item"><span class="list-icon">🧱</span><span>Siloed API, network &amp; endpoint defense</span></div>
+              <div class="list-item"><span class="list-icon">⏱️</span><span>Delayed detection and manual response</span></div>
+            </div>
+            <div class="solution-box">
+              <h4>Our Solution</h4>
+              <div class="list-item"><span class="list-icon">🛡️</span><span>AI-powered detection &amp; threat analysis</span></div>
+              <div class="list-item"><span class="list-icon">🌐</span><span>Unified tri-domain threat correlation</span></div>
+              <div class="list-item"><span class="list-icon">⚡</span><span>Real-time risk assessment &amp; mitigation</span></div>
+              <div class="list-item"><span class="list-icon">🖥️</span><span>Centralized React SOC dashboard</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. Aim & Objectives -->
+      <div class="section-card">
+        <div class="section-header">
+          <span>2. Aim &amp; Objectives</span>
+        </div>
+        <div class="section-content">
+          <div class="obj-row">
+            <div class="obj-badge">
+              <div class="obj-circle" style="background: #ef4444;">🎯</div>
+              <p>Detect multiple attack types</p>
+            </div>
+            <div class="obj-badge">
+              <div class="obj-circle" style="background: #2563eb;">🤖</div>
+              <p>ML Detection (XGBoost, Isolation Forest)</p>
+            </div>
+            <div class="obj-badge">
+              <div class="obj-circle" style="background: #059669;">📖</div>
+              <p>Contextual RAG + Gemini Analysis</p>
+            </div>
+            <div class="obj-badge">
+              <div class="obj-circle" style="background: #d97706;">⚡</div>
+              <p>Automated Mitigation &amp; Active Defense</p>
+            </div>
+            <div class="obj-badge">
+              <div class="obj-circle" style="background: #10b981;">📊</div>
+              <p>Real-Time SOC Live Monitoring</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. System Architecture -->
+      <div class="section-card" style="flex: 1;">
+        <div class="section-header">
+          <span>3. System Architecture</span>
+        </div>
+        <div class="section-content">
+          <div class="arch-container">
+
+            <div class="arch-block">
+              <div class="arch-title">Clients / Event Sources (Tri-Domain)</div>
+              <div class="client-chips">
+                <div class="chip">
+                  <strong>&lt;/&gt; API Event</strong>
+                  <span>REST / JSON Payload</span>
+                </div>
+                <div class="chip">
+                  <strong>🌐 Network Flow</strong>
+                  <span>PCAP / CICIDS2017</span>
+                </div>
+                <div class="chip">
+                  <strong>💻 Windows Agent</strong>
+                  <span>Endpoint Telemetry</span>
+                </div>
+                <div class="chip">
+                  <strong>🧪 Lab Harness</strong>
+                  <span>Synthetic Attack Vector</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="arrow-down">▼</div>
+
+            <div class="arch-block" style="border-color: #0284c7; background: #f0f9ff;">
+              <div class="arch-title" style="color: #0369a1;">ThreatGuard Backend (FastAPI Core Engine)</div>
+              <div class="backend-modules">
+                <div class="mod-box">
+                  🛡️ Traffic Interceptor
+                  <span>Enforcement Proxy</span>
+                </div>
+                <div class="mod-box">
+                  ⚙️ Rule-Based IDS
+                  <span>SQLi, BOLA, XSS, SSRF</span>
+                </div>
+                <div class="mod-box">
+                  🧠 ML Engine
+                  <span>XGBoost + Anomaly</span>
+                </div>
+                <div class="mod-box">
+                  ✨ RAG + Gemini
+                  <span>Context Security AI</span>
+                </div>
+                <div class="mod-box">
+                  📊 Risk Engine
+                  <span>Scoring &amp; Mitigation</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="arrow-down">▼</div>
+
+            <div class="bottom-arch">
+              <div class="store-box">
+                🗄️ <strong>MongoDB Atlas</strong><br>
+                <span style="font-size: 9.5px; font-weight: normal; color: #475569;">Events, Incidents, Users, Devices</span>
+              </div>
+              <div style="font-size: 16px; color: #0284c7; font-weight: bold;">⟷</div>
+              <div class="store-box" style="background: #f0fdf4; border-color: #86efac; color: #15803d;">
+                🖥️ <strong>ThreatGuard SOC Dashboard</strong><br>
+                <span style="font-size: 9.5px; font-weight: normal; color: #475569;">React Vite Frontend (Port 5173)</span>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ==================== COLUMN 2 ==================== -->
+    <div class="column">
+
+      <!-- 4. Analysis & Experimental Results -->
+      <div class="section-card">
+        <div class="section-header">
+          <span>4. Analysis &amp; Experimental Results</span>
+        </div>
+        <div class="section-content">
+
+          <!-- Top Row: Threat Distribution + Badges -->
+          <div class="metrics-top">
+            <div class="chart-card">
+              <h5>Threat Distribution (Evaluation Corpus)</h5>
+              <!-- SVG Bar Chart -->
+              <svg width="230" height="130" viewBox="0 0 230 130">
+                <!-- Grid Lines -->
+                <line x1="25" y1="20" x2="225" y2="20" stroke="#e2e8f0" stroke-width="1"/>
+                <line x1="25" y1="55" x2="225" y2="55" stroke="#e2e8f0" stroke-width="1"/>
+                <line x1="25" y1="90" x2="225" y2="90" stroke="#e2e8f0" stroke-width="1"/>
+                <line x1="25" y1="105" x2="225" y2="105" stroke="#94a3b8" stroke-width="1"/>
+
+                <!-- Y-Labels -->
+                <text x="20" y="23" font-size="9" fill="#64748b" text-anchor="end">70</text>
+                <text x="20" y="58" font-size="9" fill="#64748b" text-anchor="end">40</text>
+                <text x="20" y="93" font-size="9" fill="#64748b" text-anchor="end">10</text>
+
+                <!-- Bars -->
+                <!-- SQLi 54 -->
+                <rect x="35" y="37" width="24" height="68" fill="#38bdf8" rx="3"/>
+                <text x="47" y="32" font-size="10" font-weight="bold" fill="#0369a1" text-anchor="middle">54</text>
+                <text x="47" y="118" font-size="9" font-weight="bold" fill="#334155" text-anchor="middle">SQLi</text>
+
+                <!-- BOLA 42 -->
+                <rect x="67" y="52" width="24" height="53" fill="#fbbf24" rx="3"/>
+                <text x="79" y="47" font-size="10" font-weight="bold" fill="#b45309" text-anchor="middle">42</text>
+                <text x="79" y="118" font-size="9" font-weight="bold" fill="#334155" text-anchor="middle">BOLA</text>
+
+                <!-- XSS 38 -->
+                <rect x="99" y="57" width="24" height="48" fill="#34d399" rx="3"/>
+                <text x="111" y="52" font-size="10" font-weight="bold" fill="#047857" text-anchor="middle">38</text>
+                <text x="111" y="118" font-size="9" font-weight="bold" fill="#334155" text-anchor="middle">XSS</text>
+
+                <!-- Phishing 48 -->
+                <rect x="131" y="44" width="24" height="61" fill="#c084fc" rx="3"/>
+                <text x="143" y="39" font-size="10" font-weight="bold" fill="#7e22ce" text-anchor="middle">48</text>
+                <text x="143" y="118" font-size="9" font-weight="bold" fill="#334155" text-anchor="middle">Phish</text>
+
+                <!-- Brute Force 62 -->
+                <rect x="163" y="27" width="24" height="78" fill="#f87171" rx="3"/>
+                <text x="175" y="22" font-size="10" font-weight="bold" fill="#b91c1c" text-anchor="middle">62</text>
+                <text x="175" y="118" font-size="9" font-weight="bold" fill="#334155" text-anchor="middle">DoS/BF</text>
+
+                <!-- Other 35 -->
+                <rect x="195" y="61" width="24" height="44" fill="#94a3b8" rx="3"/>
+                <text x="207" y="56" font-size="10" font-weight="bold" fill="#475569" text-anchor="middle">35</text>
+                <text x="207" y="118" font-size="9" font-weight="bold" fill="#334155" text-anchor="middle">Other</text>
+              </svg>
+            </div>
+
+            <!-- Stat Badges -->
+            <div class="stat-badge-box">
+              <div class="stat-badge" style="border-color: #38bdf8;">
+                <div style="font-size: 26px;">🎯</div>
+                <div>
+                  <div class="stat-val" style="color: #0284c7;">98.6%</div>
+                  <div class="stat-lbl">Phishing Detection<br>(Model Evaluation)</div>
+                </div>
+              </div>
+              <div class="stat-badge" style="border-color: #facc15;">
+                <div style="font-size: 26px;">⚡</div>
+                <div>
+                  <div class="stat-val" style="color: #d97706;">&lt;15 ms</div>
+                  <div class="stat-lbl">WAF Defense Latency<br>(In-Line Mitigation)</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Bottom Row: Actual vs Predicted + Feature Importance (Corrected to Network CICIDS) -->
+          <div class="metrics-bottom">
+
+            <!-- Scatter Plot -->
+            <div class="chart-card">
+              <h5>Actual vs Predicted Threat Risk</h5>
+              <svg width="200" height="145" viewBox="0 0 200 145">
+                <!-- Axes -->
+                <line x1="25" y1="10" x2="25" y2="120" stroke="#94a3b8" stroke-width="1.5"/>
+                <line x1="25" y1="120" x2="190" y2="120" stroke="#94a3b8" stroke-width="1.5"/>
+
+                <text x="20" y="15" font-size="8" fill="#64748b" text-anchor="end">1.0</text>
+                <text x="20" y="65" font-size="8" fill="#64748b" text-anchor="end">0.5</text>
+                <text x="20" y="120" font-size="8" fill="#64748b" text-anchor="end">0.0</text>
+                <text x="25" y="132" font-size="8" fill="#64748b" text-anchor="middle">0.0</text>
+                <text x="107" y="132" font-size="8" fill="#64748b" text-anchor="middle">0.5</text>
+                <text x="190" y="132" font-size="8" fill="#64748b" text-anchor="middle">1.0</text>
+
+                <!-- Diagonal Reference Line -->
+                <line x1="25" y1="120" x2="190" y2="15" stroke="#cbd5e1" stroke-width="1.5" stroke-dasharray="3,3"/>
+
+                <!-- Scatter Dots (Risk Correlation) -->
+                <circle cx="35" cy="112" r="2.5" fill="#22c55e"/>
+                <circle cx="42" cy="105" r="2.5" fill="#22c55e"/>
+                <circle cx="50" cy="101" r="2.5" fill="#22c55e"/>
+                <circle cx="60" cy="95" r="2.5" fill="#84cc16"/>
+                <circle cx="68" cy="87" r="2.5" fill="#84cc16"/>
+                <circle cx="75" cy="82" r="2.5" fill="#eab308"/>
+                <circle cx="85" cy="78" r="2.5" fill="#eab308"/>
+                <circle cx="95" cy="68" r="2.5" fill="#f97316"/>
+                <circle cx="105" cy="60" r="2.5" fill="#f97316"/>
+                <circle cx="118" cy="52" r="2.5" fill="#ef4444"/>
+                <circle cx="130" cy="45" r="2.5" fill="#ef4444"/>
+                <circle cx="145" cy="35" r="2.5" fill="#dc2626"/>
+                <circle cx="160" cy="28" r="2.5" fill="#dc2626"/>
+                <circle cx="175" cy="20" r="2.5" fill="#991b1b"/>
+                <circle cx="185" cy="16" r="2.5" fill="#991b1b"/>
+
+                <!-- Labels -->
+                <text x="107" y="142" font-size="8" font-weight="bold" fill="#475569" text-anchor="middle">Observed Ground Truth Risk</text>
+              </svg>
+            </div>
+
+            <!-- Feature Importance (Corrected to Network & Flow Features) -->
+            <div class="chart-card">
+              <h5>Feature Importance (XGBoost - CICIDS2017)</h5>
+              <svg width="200" height="145" viewBox="0 0 200 145">
+                <!-- Flow Duration 0.32 -->
+                <text x="75" y="20" font-size="8" font-weight="600" fill="#334155" text-anchor="end">Flow Duration</text>
+                <rect x="80" y="11" width="96" height="11" fill="#2563eb" rx="2"/>
+                <text x="180" y="20" font-size="8" font-weight="bold" fill="#1e40af">0.32</text>
+
+                <!-- Fwd Packet Len 0.24 -->
+                <text x="75" y="40" font-size="8" font-weight="600" fill="#334155" text-anchor="end">Fwd Pkt Len Mean</text>
+                <rect x="80" y="31" width="72" height="11" fill="#0284c7" rx="2"/>
+                <text x="156" y="40" font-size="8" font-weight="bold" fill="#0369a1">0.24</text>
+
+                <!-- Packet Len Std 0.17 -->
+                <text x="75" y="60" font-size="8" font-weight="600" fill="#334155" text-anchor="end">Pkt Len Std</text>
+                <rect x="80" y="51" width="51" height="11" fill="#0d9488" rx="2"/>
+                <text x="135" y="60" font-size="8" font-weight="bold" fill="#0f766e">0.17</text>
+
+                <!-- Flow IAT Mean 0.12 -->
+                <text x="75" y="80" font-size="8" font-weight="600" fill="#334155" text-anchor="end">Flow IAT Mean</text>
+                <rect x="80" y="71" width="36" height="11" fill="#9333ea" rx="2"/>
+                <text x="120" y="80" font-size="8" font-weight="bold" fill="#7e22ce">0.12</text>
+
+                <!-- Bwd Pkts/s 0.09 -->
+                <text x="75" y="100" font-size="8" font-weight="600" fill="#334155" text-anchor="end">Bwd Packets/s</text>
+                <rect x="80" y="91" width="27" height="11" fill="#db2777" rx="2"/>
+                <text x="111" y="100" font-size="8" font-weight="bold" fill="#be185d">0.09</text>
+
+                <!-- Init Win Bytes 0.06 -->
+                <text x="75" y="120" font-size="8" font-weight="600" fill="#334155" text-anchor="end">Init Win Fwd</text>
+                <rect x="80" y="111" width="18" height="11" fill="#64748b" rx="2"/>
+                <text x="102" y="120" font-size="8" font-weight="bold" fill="#475569">0.06</text>
+
+                <text x="130" y="138" font-size="8" font-weight="bold" fill="#475569" text-anchor="middle">Relative Importance Score</text>
+              </svg>
+            </div>
+
+          </div>
+
+        </div>
+      </div>
+
+      <!-- 6. Conclusion -->
+      <div class="section-card" style="flex: 1;">
+        <div class="section-header">
+          <span>6. Conclusion</span>
+        </div>
+        <div class="section-content">
+          <div class="conclusion-row">
+            <div class="check-circle">✓</div>
+            <ul class="conclusion-list">
+              <li>Provides unified, tri-domain threat detection and prevention across API, Network, and Host endpoints.</li>
+              <li>Combines deterministic rules, machine learning (XGBoost, Isolation Forest) and AI contextual analysis (RAG + Gemini).</li>
+              <li>Achieves high-accuracy threat classification with ultra-low latency (&lt;15 ms response time).</li>
+              <li>Automates risk mitigation (Allow, Monitor, Rate-Limit, Block) with real-time enterprise monitoring via a React SOC dashboard.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ==================== COLUMN 3 ==================== -->
+    <div class="column">
+
+      <!-- 5. Live Penetration & SOC Verification -->
+      <div class="section-card" style="flex: 1;">
+        <div class="section-header">
+          <span>5. Live Penetration &amp; SOC Verification</span>
+        </div>
+        <div class="section-content">
+
+          <!-- Dual-Harness Penetration Test Table -->
+          <div class="harness-card">
+            <div class="harness-head">
+              <span>💻 Live Security Lab &amp; Attack Verification</span>
+              <span style="background: #0284c7; padding: 2px 8px; border-radius: 4px; font-size: 10px;">TEST HARNESS</span>
+            </div>
+            <table class="harness-table">
+              <thead>
+                <tr>
+                  <th>Attack Vector</th>
+                  <th>Direct Target (Vulnerable)</th>
+                  <th>ThreatGuard Protection</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>SQL Injection</strong></td>
+                  <td><span class="badge-leak">DATA LEAKED (DB Auth)</span></td>
+                  <td><span class="badge-mitigate">HTTP 403 BLOCKED</span></td>
+                </tr>
+                <tr>
+                  <td><strong>BOLA / IDOR</strong></td>
+                  <td><span class="badge-leak">EXPOSED (PII Data)</span></td>
+                  <td><span class="badge-mitigate">HTTP 403 BLOCKED</span></td>
+                </tr>
+                <tr>
+                  <td><strong>Stored XSS</strong></td>
+                  <td><span class="badge-leak">PAYLOAD STORED</span></td>
+                  <td><span class="badge-mitigate">HTTP 400 REJECTED</span></td>
+                </tr>
+                <tr>
+                  <td><strong>DoS / Flood</strong></td>
+                  <td><span class="badge-leak">SERVICE EXHAUSTED</span></td>
+                  <td><span class="badge-warn">HTTP 429 RATE_LIMIT</span></td>
+                </tr>
+                <tr>
+                  <td><strong>Phishing URL</strong></td>
+                  <td><span class="badge-leak">CREDENTIALS CAPTURED</span></td>
+                  <td><span class="badge-mitigate">PAGE BLOCKED (98.6%)</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- SOC Live Incident Telemetry Table (Fixed: 80.4 is HIGH!) -->
+          <div class="telemetry-card">
+            <div class="telemetry-head">
+              <span>🗄️ SOC Live Incident Telemetry Table (IST Time)</span>
+              <span style="background: #0284c7; padding: 2px 8px; border-radius: 4px; font-size: 10px;">PORT 5173</span>
+            </div>
+            <table class="tel-table">
+              <thead>
+                <tr>
+                  <th>Incident ID</th>
+                  <th>Source IP</th>
+                  <th>Attack Type</th>
+                  <th>Risk Score</th>
+                  <th>Enforcement</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>evt-gw-5aca</code></td>
+                  <td>127.0.0.1</td>
+                  <td>SQL_INJECTION</td>
+                  <td><span class="sev-high">80.4 HIGH</span></td>
+                  <td><span class="act-rate">RATE_LIMIT</span></td>
+                </tr>
+                <tr>
+                  <td><code>evt-gw-91c2</code></td>
+                  <td>127.0.0.1</td>
+                  <td>BOLA_IDOR</td>
+                  <td><span class="sev-crit">92.8 CRITICAL</span></td>
+                  <td><span class="act-block">BLOCK</span></td>
+                </tr>
+                <tr>
+                  <td><code>evt-gw-361a</code></td>
+                  <td>127.0.0.1</td>
+                  <td>PHISHING_URL</td>
+                  <td><span class="sev-high">79.6 HIGH</span></td>
+                  <td><span class="act-block">URL_BLOCK</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- React SOC Dashboard Incident View Mockup -->
+          <div class="soc-widget">
+            <div class="soc-header">
+              <div style="font-weight: 800; font-size: 12px; display: flex; align-items: center; gap: 6px;">
+                <span style="color: #38bdf8;">🛡️</span> ThreatGuard SOC Incident View
+              </div>
+              <div style="font-size: 10px; color: #94a3b8;">Live Cluster &bull; Active</div>
+            </div>
+
+            <!-- Stats Boxes -->
+            <div class="soc-stats">
+              <div class="soc-stat-box">
+                <div class="soc-stat-val" style="color: #38bdf8;">24</div>
+                <div class="soc-stat-lbl">Total Incidents</div>
+              </div>
+              <div class="soc-stat-box">
+                <div class="soc-stat-val" style="color: #fbbf24;">6</div>
+                <div class="soc-stat-lbl">Active</div>
+              </div>
+              <div class="soc-stat-box">
+                <div class="soc-stat-val" style="color: #f87171;">12</div>
+                <div class="soc-stat-lbl">Blocked</div>
+              </div>
+              <div class="soc-stat-box">
+                <div class="soc-stat-val" style="color: #34d399;">6</div>
+                <div class="soc-stat-lbl">Rate Limited</div>
+              </div>
+            </div>
+
+            <!-- Charts Row -->
+            <div class="soc-charts-row">
+              <!-- Trend Line -->
+              <div style="background: #1e293b; padding: 6px; border-radius: 6px; text-align: center;">
+                <div style="font-size: 9.5px; color: #94a3b8; font-weight: 700; margin-bottom: 4px;">Incident Trend (Last 24 Hours)</div>
+                <svg width="140" height="55" viewBox="0 0 140 55">
+                  <polyline points="10,45 30,38 50,42 70,25 90,32 110,18 130,22" fill="none" stroke="#a855f7" stroke-width="2"/>
+                  <circle cx="10" cy="45" r="2.5" fill="#c084fc"/>
+                  <circle cx="30" cy="38" r="2.5" fill="#c084fc"/>
+                  <circle cx="50" cy="42" r="2.5" fill="#c084fc"/>
+                  <circle cx="70" cy="25" r="2.5" fill="#c084fc"/>
+                  <circle cx="90" cy="32" r="2.5" fill="#c084fc"/>
+                  <circle cx="110" cy="18" r="2.5" fill="#c084fc"/>
+                  <circle cx="130" cy="22" r="2.5" fill="#c084fc"/>
+                </svg>
+              </div>
+
+              <!-- Attack Distribution Donut -->
+              <div style="background: #1e293b; padding: 6px; border-radius: 6px; display: flex; align-items: center; justify-content: space-around;">
+                <svg width="60" height="60" viewBox="0 0 42 42">
+                  <circle cx="21" cy="21" r="15.915" fill="transparent" stroke="#38bdf8" stroke-width="6" stroke-dasharray="25 75" stroke-dashoffset="25"/>
+                  <circle cx="21" cy="21" r="15.915" fill="transparent" stroke="#fbbf24" stroke-width="6" stroke-dasharray="20 80" stroke-dashoffset="100"/>
+                  <circle cx="21" cy="21" r="15.915" fill="transparent" stroke="#34d399" stroke-width="6" stroke-dasharray="17 83" stroke-dashoffset="80"/>
+                  <circle cx="21" cy="21" r="15.915" fill="transparent" stroke="#c084fc" stroke-width="6" stroke-dasharray="25 75" stroke-dashoffset="63"/>
+                  <circle cx="21" cy="21" r="15.915" fill="transparent" stroke="#94a3b8" stroke-width="6" stroke-dasharray="13 87" stroke-dashoffset="38"/>
+                </svg>
+                <div style="font-size: 8px; color: #cbd5e1; line-height: 1.4; font-weight: 600;">
+                  <span style="color: #38bdf8;">■</span> SQLi (25%)<br>
+                  <span style="color: #fbbf24;">■</span> XSS (20%)<br>
+                  <span style="color: #34d399;">■</span> BOLA (17%)<br>
+                  <span style="color: #c084fc;">■</span> Phish (25%)<br>
+                  <span style="color: #94a3b8;">■</span> Other (13%)
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+</body>
+</html>

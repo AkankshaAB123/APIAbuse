@@ -58,3 +58,7 @@ ml/phishing/*.csv
 ml/phishing/*.txt
 *.zip
 api_detection/models/phishing_url_model_meta.json
+
+# Local virtual environments
+.venv312/
+.venv*/
